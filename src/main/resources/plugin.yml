@@ -1,6 +1,6 @@
 name: tokaDisplay
 main: dev.toka.display.Main
-version: "0.1.0"
+version: "0.2.0"
 api: ["1.0.4"]
 author: zisunny104
 load: POSTWORLD
@@ -8,7 +8,18 @@ description: 共用 BossBar 與側邊記分板顯示服務
 commands:
   display:
     description: 查詢顯示服務狀態
-    permission: tokaDisplay.admin
+    permission: tokaDisplay.use
 permissions:
   tokaDisplay.admin:
     default: op
+
+
+  tokaDisplay.use:
+    default: true
+  tokaDisplay.motd.manage:
+    default: op
+  tokaDisplay.broadcast.manage:
+    default: op
+  tokaDisplay.announcements.manage:
+    default: op
+

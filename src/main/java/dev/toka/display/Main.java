@@ -20,13 +20,21 @@ public final class Main extends PluginBase implements Listener {
     private static Main instance;
     private final Map<Player,State> players=new HashMap<>();
     private int limit;
+    private AnnouncementService announcements;
+    public static String listAnnouncements(String kind){return service().announcements.list(kind);}
+    public static void importLegacyAnnouncements(String json)throws Exception{service().announcements.importLegacy(json);}
+    public static void enableAnnouncementsAfterRestart(){service().announcements.requestEnable();}
+    public static boolean ownsAnnouncements(){return ready()&&instance.announcements.publishing();}
+    public static int changeAnnouncement(String kind,String action,int id,String text)throws Exception{return service().announcements.change(kind,action,id,text);}
     private static final class State {
         final Channel<Boss> bosses;final Channel<Sidebar> sidebars;
         Long bossId;DummyBossBar boss;Scoreboard board;Sidebar shown;
         State(int limit){bosses=new Channel<>(limit);sidebars=new Channel<>(limit);}
     }
     public void onEnable(){
-        saveDefaultConfig();limit=Math.max(1,Math.min(128,getConfig().getInt("max-sources",32)));
+        saveDefaultConfig();
+        try{announcements=new AnnouncementService(this);}catch(Exception e){throw new IllegalStateException("公告儲存無法開啟，請保留原始資料",e);}
+        limit=Math.max(1,Math.min(128,getConfig().getInt("max-sources",32)));
         getServer().getPluginManager().registerEvents(this,this);instance=this;
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
     }
@@ -52,12 +60,14 @@ public final class Main extends PluginBase implements Listener {
     public static void remove(Player player,String source){Main main=service();State state=main.players.get(player);if(state!=null){state.bosses.remove(source);state.sidebars.remove(source);}}
     public static void removeSource(String source){Main main=service();for(State state:main.players.values()){state.bosses.remove(source);state.sidebars.remove(source);}}
     private void render(){
+        announcements.pulse();
         long now=System.nanoTime();
         for(var entry:new ArrayList<>(players.entrySet())){
             Player player=entry.getKey();State state=entry.getValue();
             if(!player.isOnline()){clear(player,state);players.remove(player);continue;}
             try {
                 Boss boss=state.bosses.winner(now).orElse(null);
+                if(!getConfig().getBoolean("bossbar.enabled",true))boss=null;
                 if(boss==null){if(state.bossId!=null)player.removeBossBar(state.bossId);state.bossId=null;state.boss=null;}
                 else {
                     if(state.bossId==null||!player.getDummyBossBars().containsKey(state.bossId)){
@@ -65,6 +75,7 @@ public final class Main extends PluginBase implements Listener {
                     }else{state.boss.setText(boss.text());state.boss.setLength(boss.progress());}
                 }
                 Sidebar sidebar=state.sidebars.winner(now).orElse(null);
+                if(!getConfig().getBoolean("sidebar.enabled",true))sidebar=null;
                 if(!Objects.equals(sidebar,state.shown)){
                     if(sidebar==null){if(state.board!=null)state.board.hideFor(player);state.board=null;state.shown=null;}
                     else {
@@ -82,7 +93,8 @@ public final class Main extends PluginBase implements Listener {
     }
     private void clear(Player player,State state){try{if(state.bossId!=null)player.removeBossBar(state.bossId);}catch(RuntimeException|LinkageError ignored){}try{if(state.board!=null)state.board.hideFor(player);}catch(RuntimeException|LinkageError ignored){}}
     @EventHandler public void quit(PlayerQuitEvent event){State state=players.remove(event.getPlayer());if(state!=null)clear(event.getPlayer(),state);}
-    public void onDisable(){instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
-    public boolean onCommand(CommandSender sender,Command command,String label,String[] args){if(!sender.hasPermission("tokaDisplay.admin"))return false;sender.sendMessage("tokaDisplay：就緒；顯示中的玩家 "+players.size());return true;}
+    public void onDisable(){if(announcements!=null)try{announcements.close();}catch(Exception e){getLogger().warning("公告儲存關閉失敗");}instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
+    public boolean onCommand(CommandSender sender,Command command,String label,String[] args){if(args.length>0&&announcements.command(sender,args))return true;if(!sender.hasPermission("tokaDisplay.admin"))return false;sender.sendMessage("tokaDisplay：就緒；顯示中的玩家 "+players.size());return true;}
 }
+
 

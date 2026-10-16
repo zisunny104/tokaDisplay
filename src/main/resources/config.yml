@@ -2,3 +2,17 @@
 update-ticks: 5
 # 每位玩家、每種顯示管道的來源上限，避免來源未清理而持續累積。
 max-sources: 32
+
+storage:
+  backend: sqlite
+announcements:
+  enabled: false
+  motd-seconds: 10
+  broadcast-seconds: 25
+
+
+sidebar:
+  enabled: true
+bossbar:
+  enabled: true
+
