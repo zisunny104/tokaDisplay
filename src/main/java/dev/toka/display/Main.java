@@ -178,6 +178,37 @@ public final class Main extends PluginBase implements Listener {
     private void clear(Player player,State state){try{if(state.bossId!=null)player.removeBossBar(state.bossId);}catch(RuntimeException|LinkageError ignored){}try{if(state.board!=null)state.board.hideFor(player);}catch(RuntimeException|LinkageError ignored){}}
     @EventHandler public void quit(PlayerQuitEvent event){State state=players.remove(event.getPlayer());if(state!=null)clear(event.getPlayer(),state);}
     public void onDisable(){instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
+    /**
+     * The pinned messages and the messages sent once of a player, in the order they are shown, as a JSON array of
+     * {position, kind, id, priority, seconds, text}. The base information is not listed.
+     * seconds is -1 for a message that stays until it is removed.
+     */
+    public static String listMessages(Player player){
+        Main main=service();State state=main.players.get(Objects.requireNonNull(player));
+        var rows=new com.google.gson.JsonArray();
+        if(state!=null)for(Layout.Entry entry:state.layout.entries(System.nanoTime())){
+            var row=new com.google.gson.JsonObject();
+            row.addProperty("position",entry.position());row.addProperty("kind",entry.kind());row.addProperty("id",entry.id());
+            row.addProperty("priority",entry.priority());row.addProperty("seconds",entry.seconds());row.addProperty("text",entry.text());
+            rows.add(row);
+        }
+        return rows.toString();
+    }
+    /**
+     * Removes one message, by its id or by its position in the list. The base information cannot be removed.
+     *
+     * @return true when a message was removed
+     */
+    public static boolean removeMessage(Player player,String idOrPosition){
+        Main main=service();State state=main.players.get(Objects.requireNonNull(player));
+        return state!=null&&state.layout.remove(Objects.requireNonNull(idOrPosition),System.nanoTime());
+    }
+    /** Removes every pinned message and every message sent once of a player. The base information stays. */
+    public static void clearMessages(Player player){
+        Main main=service();State state=main.players.get(Objects.requireNonNull(player));
+        if(state!=null)state.layout.clearMessages();
+    }
+    /** The commands only use the methods above, so that what an admin can do is what a plugin can do. */
     private List<Player> targets(CommandSender sender,String name){
         if("*".equals(name))return new ArrayList<>(players.keySet());
         Player player=getServer().getPlayer(name);
@@ -186,33 +217,32 @@ public final class Main extends PluginBase implements Listener {
     }
     public boolean onCommand(CommandSender sender,Command command,String label,String[] args){
         if(!sender.hasPermission("tokaDisplay.admin"))return false;
-        long now=System.nanoTime();String sub=args.length==0?"":args[0].toLowerCase(Locale.ROOT);
+        String sub=args.length==0?"":args[0].toLowerCase(Locale.ROOT);
         switch(sub){
             case "list"->{
                 List<Player> list=args.length>=2?targets(sender,args[1]):new ArrayList<>(players.keySet());
                 int total=0;
                 for(Player player:list){
-                    State state=players.get(player);if(state==null)continue;
-                    for(Layout.Entry entry:state.layout.entries(now)){
-                        total++;String text=entry.text().replace("
-"," ");if(text.length()>30)text=text.substring(0,30)+"…";
-                        sender.sendMessage(player.getName()+" #"+entry.position()+" "+(entry.kind().equals("pinned")?"固定":"單次")+" id="+entry.id()+" 優先權="+entry.priority()+" "+(entry.seconds()<0?"永久":"剩 "+entry.seconds()+" 秒")+" "+text);
+                    for(var row:com.google.gson.JsonParser.parseString(listMessages(player)).getAsJsonArray()){
+                        var entry=row.getAsJsonObject();total++;
+                        String text=entry.get("text").getAsString().replace('\n',' ');if(text.length()>30)text=text.substring(0,30)+"…";
+                        long seconds=entry.get("seconds").getAsLong();
+                        sender.sendMessage(player.getName()+" #"+entry.get("position").getAsInt()+" "+(entry.get("kind").getAsString().equals("pinned")?"固定":"單次")+" id="+entry.get("id").getAsString()+" 優先權="+entry.get("priority").getAsInt()+" "+(seconds<0?"永久":"剩 "+seconds+" 秒")+" "+text);
                     }
                 }
                 sender.sendMessage("共 "+total+" 則訊息（基本資訊那一行不列出）");
             }
             case "unpin"->{
                 if(args.length!=3){sender.sendMessage("用法：/display unpin <玩家或*> <訊息id或編號>");return true;}
-                int removed=0;for(Player player:targets(sender,args[1])){State state=players.get(player);if(state!=null&&state.layout.remove(args[2],now))removed++;}
-                sender.sendMessage("已移除 "+removed+" 位玩家的訊息 "+args[2]);
+                int removed=0;for(Player player:targets(sender,args[1]))if(removeMessage(player,args[2]))removed++;
+                sender.sendMessage("已從 "+removed+" 位玩家移除訊息 "+args[2]);
             }
             case "clear"->{
                 if(args.length!=2){sender.sendMessage("用法：/display clear <玩家或*>");return true;}
-                int cleared=0;for(Player player:targets(sender,args[1])){State state=players.get(player);if(state!=null){state.layout.clearMessages();cleared++;}}
+                int cleared=0;for(Player player:targets(sender,args[1])){clearMessages(player);cleared++;}
                 sender.sendMessage("已清除 "+cleared+" 位玩家的固定與單次訊息，基本資訊不受影響");
             }
-            default->sender.sendMessage("tokaDisplay：就緒；顯示中的玩家 "+players.size()+"
-/display list [玩家] | unpin <玩家或*> <訊息id或編號> | clear <玩家或*>"
+            default->sender.sendMessage("tokaDisplay：就緒；顯示中的玩家 "+players.size()+"\n/display list [玩家] | unpin <玩家或*> <訊息id或編號> | clear <玩家或*>");
         }
         return true;
     }

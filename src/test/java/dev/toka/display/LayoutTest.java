@@ -169,9 +169,7 @@ public class LayoutTest {
         layout.pin("b", "b", 0, null, 0, 0);
         layout.flash("notice", null, 0, 0);
         assertTrue(layout.remove("b", 1));
-        assertEquals("info
-a
-notice", layout.frame(1).text());
+        assertEquals("info\na\nnotice", layout.frame(1).text());
         assertTrue(layout.remove("1", 1));
         assertFalse(layout.remove("9", 1));
         assertFalse(layout.remove("missing", 1));
@@ -185,8 +183,7 @@ notice", layout.frame(1).text());
         Layout layout = new Layout(new Layout.Settings(15, 3, 2, 100, BarColor.WHITE, 60 * S));
         layout.pin("forgotten", "forgotten", 0, null, 0, 0);
         layout.pin("short", "short", 0, null, 10 * S, 0);
-        assertEquals("forgotten
-short", layout.frame(9 * S).text());
+        assertEquals("forgotten\nshort", layout.frame(9 * S).text());
         assertEquals("forgotten", layout.frame(10 * S).text());
         assertTrue(layout.isEmpty(60 * S));
     }
