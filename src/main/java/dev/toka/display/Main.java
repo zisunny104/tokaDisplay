@@ -48,8 +48,8 @@ public final class Main extends PluginBase implements Listener {
         saveDefaultConfig();
         try{announcements=new AnnouncementService(this);}catch(Exception error){throw new IllegalStateException("公告儲存無法開啟，請保留原始資料",error);}
         int[] counts=announcements.counts();
-        getLogger().info("載入 MOTD 共 "+counts[0]+" 個");
-        getLogger().info("載入廣播共 "+counts[1]+" 個");
+        getLogger().info("§b載入 MOTD 共 §a"+counts[0]+" §b個");
+        getLogger().info("§b載入廣播共 §a"+counts[1]+" §b個");
         limit=Math.max(1,Math.min(128,getConfig().getInt("max-sources",32)));
         aliases=new HashMap<>();
         var section=getConfig().getSection("colors");
