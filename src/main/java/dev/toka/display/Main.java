@@ -50,7 +50,7 @@ public final class Main extends PluginBase implements Listener {
                 Math.max(1,Math.min(3600,getConfig().getInt("messages.flash-seconds",15))),
                 Math.max(1,Math.min(16,getConfig().getInt("messages.max-flash-lines",4))),
                 Math.max(1,Math.min(32,getConfig().getInt("messages.max-pinned",8))),
-                8192,fallback);
+                8192,fallback,Math.max(0,Math.min(2592000,getConfig().getInt("messages.pinned-max-seconds",0)))*Layout.SECOND);
         getServer().getPluginManager().registerEvents(this,this);instance=this;
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
     }
@@ -178,5 +178,42 @@ public final class Main extends PluginBase implements Listener {
     private void clear(Player player,State state){try{if(state.bossId!=null)player.removeBossBar(state.bossId);}catch(RuntimeException|LinkageError ignored){}try{if(state.board!=null)state.board.hideFor(player);}catch(RuntimeException|LinkageError ignored){}}
     @EventHandler public void quit(PlayerQuitEvent event){State state=players.remove(event.getPlayer());if(state!=null)clear(event.getPlayer(),state);}
     public void onDisable(){instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
-    public boolean onCommand(CommandSender sender,Command command,String label,String[] args){if(!sender.hasPermission("tokaDisplay.admin"))return false;sender.sendMessage("tokaDisplay：就緒；顯示中的玩家 "+players.size());return true;}
+    private List<Player> targets(CommandSender sender,String name){
+        if("*".equals(name))return new ArrayList<>(players.keySet());
+        Player player=getServer().getPlayer(name);
+        if(player==null){sender.sendMessage("找不到玩家 "+name+"（需要完整名稱，且要在線上）");return List.of();}
+        return List.of(player);
+    }
+    public boolean onCommand(CommandSender sender,Command command,String label,String[] args){
+        if(!sender.hasPermission("tokaDisplay.admin"))return false;
+        long now=System.nanoTime();String sub=args.length==0?"":args[0].toLowerCase(Locale.ROOT);
+        switch(sub){
+            case "list"->{
+                List<Player> list=args.length>=2?targets(sender,args[1]):new ArrayList<>(players.keySet());
+                int total=0;
+                for(Player player:list){
+                    State state=players.get(player);if(state==null)continue;
+                    for(Layout.Entry entry:state.layout.entries(now)){
+                        total++;String text=entry.text().replace("
+"," ");if(text.length()>30)text=text.substring(0,30)+"…";
+                        sender.sendMessage(player.getName()+" #"+entry.position()+" "+(entry.kind().equals("pinned")?"固定":"單次")+" id="+entry.id()+" 優先權="+entry.priority()+" "+(entry.seconds()<0?"永久":"剩 "+entry.seconds()+" 秒")+" "+text);
+                    }
+                }
+                sender.sendMessage("共 "+total+" 則訊息（基本資訊那一行不列出）");
+            }
+            case "unpin"->{
+                if(args.length!=3){sender.sendMessage("用法：/display unpin <玩家或*> <訊息id或編號>");return true;}
+                int removed=0;for(Player player:targets(sender,args[1])){State state=players.get(player);if(state!=null&&state.layout.remove(args[2],now))removed++;}
+                sender.sendMessage("已移除 "+removed+" 位玩家的訊息 "+args[2]);
+            }
+            case "clear"->{
+                if(args.length!=2){sender.sendMessage("用法：/display clear <玩家或*>");return true;}
+                int cleared=0;for(Player player:targets(sender,args[1])){State state=players.get(player);if(state!=null){state.layout.clearMessages();cleared++;}}
+                sender.sendMessage("已清除 "+cleared+" 位玩家的固定與單次訊息，基本資訊不受影響");
+            }
+            default->sender.sendMessage("tokaDisplay：就緒；顯示中的玩家 "+players.size()+"
+/display list [玩家] | unpin <玩家或*> <訊息id或編號> | clear <玩家或*>"
+        }
+        return true;
+    }
 }

@@ -13,7 +13,7 @@ public class LayoutTest {
     private static final long S = Layout.SECOND;
 
     private static Layout layout() {
-        return new Layout(new Layout.Settings(15, 3, 2, 100, BarColor.WHITE));
+        return new Layout(new Layout.Settings(15, 3, 2, 100, BarColor.WHITE, 0));
     }
 
     private static BarEffect bar(float fill, BarColor color) {
@@ -143,5 +143,51 @@ public class LayoutTest {
         assertEquals(100f, bar(250, BarColor.RED).fill(), 0f);
         assertEquals(0f, bar(-3, BarColor.RED).fill(), 0f);
         assertThrows(IllegalArgumentException.class, () -> bar(Float.NaN, BarColor.RED));
+    }
+
+    @Test
+    public void theListShowsTheMessagesInTheOrderTheyAreShownAndWhatIsLeft() {
+        Layout layout = layout();
+        layout.flash("notice", null, 0, 0);
+        layout.pin("late", "late", 0, null, 0, 0);
+        layout.pin("first", "first", 5, null, 20 * S, 0);
+        var entries = layout.entries(1 * S);
+        assertEquals(3, entries.size());
+        assertEquals("first", entries.get(0).id());
+        assertEquals(1, entries.get(0).position());
+        assertEquals(19, entries.get(0).seconds());
+        assertEquals("late", entries.get(1).id());
+        assertEquals(-1, entries.get(1).seconds());
+        assertEquals("flash", entries.get(2).kind());
+    }
+
+    @Test
+    public void aForgottenPinnedMessageCanBeRemovedByIdOrByNumberAndTheBaseStays() {
+        Layout layout = layout();
+        layout.base("info", null, 100 * S, 0);
+        layout.pin("a", "a", 0, null, 0, 0);
+        layout.pin("b", "b", 0, null, 0, 0);
+        layout.flash("notice", null, 0, 0);
+        assertTrue(layout.remove("b", 1));
+        assertEquals("info
+a
+notice", layout.frame(1).text());
+        assertTrue(layout.remove("1", 1));
+        assertFalse(layout.remove("9", 1));
+        assertFalse(layout.remove("missing", 1));
+        layout.pin("c", "c", 0, null, 0, 1);
+        layout.clearMessages();
+        assertEquals("info", layout.frame(2).text());
+    }
+
+    @Test
+    public void aPinnedMessageWithoutTimeStaysAtMostAsLongAsTheConfigAllows() {
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 100, BarColor.WHITE, 60 * S));
+        layout.pin("forgotten", "forgotten", 0, null, 0, 0);
+        layout.pin("short", "short", 0, null, 10 * S, 0);
+        assertEquals("forgotten
+short", layout.frame(9 * S).text());
+        assertEquals("forgotten", layout.frame(10 * S).text());
+        assertTrue(layout.isEmpty(60 * S));
     }
 }

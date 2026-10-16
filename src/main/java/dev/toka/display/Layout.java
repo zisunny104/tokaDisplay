@@ -16,7 +16,7 @@ import java.util.Objects;
 public final class Layout {
     public static final long SECOND = 1_000_000_000L;
 
-    public record Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor) {
+    public record Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor, long maxPinnedLifetime) {
     }
 
     /**
@@ -49,6 +49,11 @@ public final class Layout {
         return lifetime <= 0 ? 0 : now + lifetime;
     }
 
+    /** A pinned message that was given no time stays at most as long as the config allows, 0 for no limit. */
+    private long pinnedLifetime(long lifetime) {
+        return lifetime > 0 ? lifetime : this.settings.maxPinnedLifetime();
+    }
+
     /**
      * Sets the base information. Only the owner of the base calls this, the messages cannot change it.
      *
@@ -78,7 +83,7 @@ public final class Layout {
             throw new IllegalStateException("Too many pinned messages");
         }
         long order = old != null ? old.order() : ++this.counter;
-        this.pinned.put(id, new PinnedMessage(id, text, priority, expiry(now, lifetime), bar, order));
+        this.pinned.put(id, new PinnedMessage(id, text, priority, expiry(now, this.pinnedLifetime(lifetime)), bar, order));
     }
 
     /**
@@ -100,6 +105,75 @@ public final class Layout {
         while (this.flashes.size() > this.settings.maxFlash()) {
             this.flashes.removeFirst();
         }
+    }
+
+    /**
+     * One message as the status command shows it.
+     *
+     * @param position the number of the message in the list, from 1, as it is shown to the player
+     * @param seconds  seconds left, -1 when it stays until it is removed
+     */
+    public record Entry(int position, String kind, String id, int priority, long seconds, String text) {
+    }
+
+    private List<DisplayMessage> shown(long now) {
+        this.prune(now);
+        List<PinnedMessage> ordered = new ArrayList<>(this.pinned.values());
+        ordered.sort(Comparator.comparingInt(PinnedMessage::priority).reversed().thenComparingLong(PinnedMessage::order));
+        List<DisplayMessage> all = new ArrayList<>(ordered);
+        all.addAll(this.flashes);
+        return all;
+    }
+
+    /**
+     * @return the pinned messages and the messages sent once in the order they are shown
+     */
+    public List<Entry> entries(long now) {
+        List<Entry> entries = new ArrayList<>();
+        for (DisplayMessage message : this.shown(now)) {
+            long left = message.expiresAt() == 0 ? -1 : Math.max(0, (message.expiresAt() - now + SECOND - 1) / SECOND);
+            entries.add(new Entry(entries.size() + 1, message.kind(), message.id(), message.priority(), left, message.text()));
+        }
+        return entries;
+    }
+
+    /**
+     * Removes a message by the number it has in the list or by its id.
+     *
+     * @return true when a message was removed
+     */
+    public boolean remove(String idOrNumber, long now) {
+        List<DisplayMessage> all = this.shown(now);
+        DisplayMessage target = null;
+        if (idOrNumber.matches("[0-9]{1,4}")) {
+            int number = Integer.parseInt(idOrNumber);
+            if (number >= 1 && number <= all.size()) {
+                target = all.get(number - 1);
+            }
+        }
+        if (target == null) {
+            for (DisplayMessage message : all) {
+                if (message.id().equals(idOrNumber)) {
+                    target = message;
+                    break;
+                }
+            }
+        }
+        if (target == null) {
+            return false;
+        }
+        if (target instanceof PinnedMessage) {
+            return this.pinned.remove(target.id()) != null;
+        }
+        return this.flashes.remove(target);
+    }
+
+    /**
+     * Removes every pinned message and every message sent once. The base information stays.
+     */
+    public void clearMessages() {
+        this.pinned.clear();
+        this.flashes.clear();
     }
 
     private void prune(long now) {
