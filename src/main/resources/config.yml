@@ -39,6 +39,12 @@ messages:
   max-flash-lines: 4
   # 每位玩家同時最多幾則固定訊息。
   max-pinned: 8
+  # 每則「只發送一次」的訊息開頭（第一行前面），可以用 § 色碼；留空就不加。
+  flash-prefix: "§f- "
+  # 每則「固定」訊息的開頭，可以用 § 色碼；留空就不加。
+  pinned-prefix: "§f= "
+  # true：清掉沒有內容可讀的空白行與行尾空白，血條下面就不會留空位；false：照原樣顯示（zero 的基本資訊原本有一整行空白用來撐版面）。
+  trim-blank-lines: true
   # 沒有指定秒數的固定訊息最久留多久（秒），預設 0 代表不限制。擔心有人忘記關掉固定訊息時，可以設成例如 21600（6 小時）。
   # 管理員也可以用 /display list 查看、/display unpin 移除、/display clear 清除。
   pinned-max-seconds: 0

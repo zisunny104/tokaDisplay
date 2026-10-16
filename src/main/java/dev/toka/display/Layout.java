@@ -16,7 +16,16 @@ import java.util.Objects;
 public final class Layout {
     public static final long SECOND = 1_000_000_000L;
 
-    public record Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor, long maxPinnedLifetime) {
+    /**
+     * @param flashPrefix  put before the first line of every message that is sent once, such as "§f- "
+     * @param pinnedPrefix put before the first line of every pinned message, such as "§f= "
+     * @param trimBlank    true to drop the lines that have nothing to read and the spaces at the end of a line
+     */
+    public record Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor,
+                           long maxPinnedLifetime, String flashPrefix, String pinnedPrefix, boolean trimBlank) {
+        public Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor, long maxPinnedLifetime) {
+            this(flashSeconds, maxFlash, maxPinned, maxText, defaultColor, maxPinnedLifetime, "", "", false);
+        }
     }
 
     /**
@@ -176,6 +185,28 @@ public final class Layout {
         this.flashes.clear();
     }
 
+    private void addLines(List<String> lines, String text, String prefix) {
+        String clean = this.settings.trimBlank() ? trimBlank(text) : text;
+        if (!clean.isEmpty()) {
+            lines.add(prefix + clean);
+        }
+    }
+
+    /**
+     * Removes the spaces at the end of each line and the lines with nothing to read, which are only spaces and color codes.
+     */
+    static String trimBlank(String text) {
+        List<String> kept = new ArrayList<>();
+        for (String line : text.split("\n", -1)) {
+            String visible = line.replaceAll("§.", "").strip();
+            if (visible.isEmpty()) {
+                continue;
+            }
+            kept.add(line.stripTrailing());
+        }
+        return String.join("\n", kept);
+    }
+
     private void prune(long now) {
         this.pinned.values().removeIf(message -> message.expired(now));
         this.flashes.removeIf(message -> message.expired(now));
@@ -197,16 +228,16 @@ public final class Layout {
         this.prune(now);
         List<String> lines = new ArrayList<>();
         if (this.baseAlive(now)) {
-            lines.add(this.baseText);
+            this.addLines(lines, this.baseText, "");
         }
 
         List<PinnedMessage> ordered = new ArrayList<>(this.pinned.values());
         ordered.sort(Comparator.comparingInt(PinnedMessage::priority).reversed().thenComparingLong(PinnedMessage::order));
         for (PinnedMessage message : ordered) {
-            lines.add(message.text());
+            this.addLines(lines, message.text(), this.settings.pinnedPrefix());
         }
         for (FlashMessage message : this.flashes) {
-            lines.add(message.text());
+            this.addLines(lines, message.text(), this.settings.flashPrefix());
         }
 
         DisplayMessage chosen = null;

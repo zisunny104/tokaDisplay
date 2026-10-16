@@ -61,7 +61,9 @@ public final class Main extends PluginBase implements Listener {
                 Math.max(1,Math.min(3600,getConfig().getInt("messages.flash-seconds",15))),
                 Math.max(1,Math.min(16,getConfig().getInt("messages.max-flash-lines",4))),
                 Math.max(1,Math.min(32,getConfig().getInt("messages.max-pinned",8))),
-                8192,fallback,Math.max(0,Math.min(2592000,getConfig().getInt("messages.pinned-max-seconds",0)))*Layout.SECOND);
+                8192,fallback,Math.max(0,Math.min(2592000,getConfig().getInt("messages.pinned-max-seconds",0)))*Layout.SECOND,
+                getConfig().getString("messages.flash-prefix","§f- "),getConfig().getString("messages.pinned-prefix","§f= "),
+                getConfig().getBoolean("messages.trim-blank-lines",true));
         getServer().getPluginManager().registerEvents(this,this);instance=this;
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
     }
@@ -232,6 +234,13 @@ public final class Main extends PluginBase implements Listener {
         if(!sender.hasPermission("tokaDisplay.admin"))return false;
         String sub=args.length==0?"":args[0].toLowerCase(Locale.ROOT);
         switch(sub){
+            case "testbar"->{
+                if(!(sender instanceof Player self)){sender.sendMessage("只能在遊戲內使用");return true;}
+                String color=args.length>=2?args[1]:null;float fill=50f;
+                try{if(args.length>=3)fill=Float.parseFloat(args[2]);}catch(NumberFormatException error){sender.sendMessage("填充度要是 0 到 100 的數字");return true;}
+                pin(self,"display:testbar","§e血條測試："+(color==null?"預設顏色":color)+" "+(int)fill+"%",10,99,fill,color);
+                sender.sendMessage("已用 10 秒顯示測試血條，用法：/display testbar <顏色> [填充度]");
+            }
             case "list"->{
                 List<Player> list=args.length>=2?targets(sender,args[1]):new ArrayList<>(players.keySet());
                 int total=0;

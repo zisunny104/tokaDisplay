@@ -187,4 +187,15 @@ public class LayoutTest {
         assertEquals("forgotten", layout.frame(10 * S).text());
         assertTrue(layout.isEmpty(60 * S));
     }
+
+    @Test
+    public void blankLinesAndPrefixes() {
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 200, BarColor.WHITE, 0, "§f- ", "§f= ", true));
+        layout.base(" §5info  \n" + " ".repeat(60) + "\n", null, 100 * S, 0);
+        layout.pin("cd", "cooldown", 0, null, 0, 0);
+        layout.flash("notice\n   \n§r  ", null, 0, 0);
+        assertEquals(" §5info\n§f= cooldown\n§f- notice", layout.frame(1).text());
+        layout.clearMessages();
+        assertEquals(" §5info", layout.frame(2).text());
+    }
 }
