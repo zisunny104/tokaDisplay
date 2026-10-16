@@ -63,7 +63,8 @@ public final class Main extends PluginBase implements Listener {
                 8192,fallback,Math.max(0,Math.min(2592000,getConfig().getInt("messages.pinned-max-seconds",0)))*Layout.SECOND,
                 getConfig().getString("messages.flash-prefix","§f- "),getConfig().getString("messages.pinned-prefix","§f= "),
                 getConfig().getBoolean("messages.trim-blank-lines",true),
-                Math.max(0,Math.min(3,getConfig().getInt("messages.bar-gap-lines",1))));
+                Math.max(0,Math.min(3,getConfig().getInt("messages.bar-gap-lines",1))),
+                Math.max(0,Math.min(200,getConfig().getInt("messages.status-min-width",60))));
         getServer().getPluginManager().registerEvents(this,this);instance=this;
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
     }

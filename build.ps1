@@ -5,10 +5,10 @@ try {
  & $Maven "-Dmaven.repo.local=$Repository" package
  if($LASTEXITCODE -ne 0){throw '編譯或測試失敗'}
  New-Item -ItemType Directory -Force output | Out-Null
- Copy-Item target/tokaDisplay-0.2.4.jar output -Force
+ Copy-Item target/tokaDisplay-0.2.5.jar output -Force
  $shared=Join-Path (Split-Path $PSScriptRoot -Parent) 'plugin-modernization/output'
  New-Item -ItemType Directory -Force $shared | Out-Null
- Copy-Item output/tokaDisplay-0.2.4.jar $shared -Force
- Get-FileHash output/tokaDisplay-0.2.4.jar
+ Copy-Item output/tokaDisplay-0.2.5.jar $shared -Force
+ Get-FileHash output/tokaDisplay-0.2.5.jar
 } finally {Pop-Location}
 

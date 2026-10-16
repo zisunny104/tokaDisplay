@@ -21,11 +21,12 @@ public final class Layout {
      * @param pinnedPrefix put before the first line of every pinned message, such as "§f= "
      * @param trimBlank    true to drop the lines that have nothing to read and the spaces at the end of a line
      * @param barGapLines  lines kept empty under the first line for the bar, only when something follows
+     * @param minWidth     the least width of the text in the width of a space, the first line is centered in it
      */
     public record Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor,
-                           long maxPinnedLifetime, String flashPrefix, String pinnedPrefix, boolean trimBlank, int barGapLines) {
+                           long maxPinnedLifetime, String flashPrefix, String pinnedPrefix, boolean trimBlank, int barGapLines, int minWidth) {
         public Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor, long maxPinnedLifetime) {
-            this(flashSeconds, maxFlash, maxPinned, maxText, defaultColor, maxPinnedLifetime, "", "", false, 0);
+            this(flashSeconds, maxFlash, maxPinned, maxText, defaultColor, maxPinnedLifetime, "", "", false, 0, 0);
         }
     }
 
@@ -208,6 +209,27 @@ public final class Layout {
         return String.join("\n", kept);
     }
 
+    /**
+     * An estimate of the width of a line in the width of a space: letters and digits are one, narrow marks such as the
+     * colon and the letter i are a half, Chinese characters and other wide ones are two, color codes are nothing.
+     */
+    static double width(String line) {
+        double width = 0;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '§') {
+                i++;
+                continue;
+            }
+            if (c < 128) {
+                width += ".,:;'|!iIl`".indexOf(c) >= 0 ? 0.5 : 1;
+            } else {
+                width += 2;
+            }
+        }
+        return width;
+    }
+
     private void prune(long now) {
         this.pinned.values().removeIf(message -> message.expired(now));
         this.flashes.removeIf(message -> message.expired(now));
@@ -250,12 +272,23 @@ public final class Layout {
 
         List<String> lines = new ArrayList<>();
         if (!first.isEmpty()) {
-            lines.add(first);
-            // The bar is drawn under the first line; the lines that follow have to start under the bar
-            if (this.settings.barGapLines() > 0 && !after.isEmpty()) {
-                for (int i = 0; i < this.settings.barGapLines(); i++) {
-                    lines.add(" ");
+            if (this.settings.trimBlank() && this.settings.barGapLines() > 0 && !after.isEmpty()) {
+                // The other lines stay on the left; the first line is moved to the middle of the text with spaces,
+                // and the empty line for the bar is as wide as the text, so that the text does not change its width
+                double widest = Math.max(this.settings.minWidth(), width(first));
+                for (String line : after) {
+                    for (String part : line.split("\n", -1)) {
+                        widest = Math.max(widest, width(part));
+                    }
                 }
+                int total = (int) Math.ceil(widest);
+                int pad = (int) Math.round((total - width(first)) / 2.0);
+                lines.add(" ".repeat(Math.max(0, pad)) + first);
+                for (int i = 0; i < this.settings.barGapLines(); i++) {
+                    lines.add(" ".repeat(total));
+                }
+            } else {
+                lines.add(first);
             }
         }
         lines.addAll(after);

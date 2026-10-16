@@ -190,22 +190,24 @@ public class LayoutTest {
 
     @Test
     public void blankLinesAndPrefixes() {
-        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 200, BarColor.WHITE, 0, "§f- ", "§f= ", true, 1));
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 200, BarColor.WHITE, 0, "§f- ", "§f= ", true, 1, 10));
         layout.base(" §5info  \n" + " ".repeat(60) + "\n", null, 100 * S, 0);
-        // nothing under the first line: no line is kept for the bar
+        // nothing under the first line: no line is kept for the bar and the first line is not moved
         assertEquals(" §5info", layout.frame(1).text());
         layout.pin("cd", "cooldown", 0, null, 0, 0);
         layout.flash("notice\n   \n§r  ", null, 0, 0);
-        assertEquals(" §5info\n \n§f= cooldown\n§f- notice", layout.frame(1).text());
+        // the text is 10 wide, the first line is 4.5 wide and is moved by 3 spaces, the line for the bar is 10 spaces
+        assertEquals("   " + " §5info\n" + " ".repeat(10) + "\n§f= cooldown\n§f- notice", layout.frame(1).text());
         layout.clearMessages();
         assertEquals(" §5info", layout.frame(2).text());
     }
 
     @Test
     public void theLandLineOfTheBaseGoesUnderTheBar() {
-        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 200, BarColor.WHITE, 0, "- ", "= ", true, 1));
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 200, BarColor.WHITE, 0, "- ", "= ", true, 1, 0));
         layout.base("first\n" + " ".repeat(60) + "\nland line\n", null, 100 * S, 0);
-        assertEquals("first\n \nland line", layout.frame(1).text());
+        // the widest line is 7.5 wide, so the text is 8 wide and "first" (4.5 wide) is moved by 2 spaces
+        assertEquals("  first\n" + " ".repeat(8) + "\nland line", layout.frame(1).text());
     }
 
     @Test
