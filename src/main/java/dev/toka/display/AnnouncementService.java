@@ -6,14 +6,14 @@ import dev.toka.storage.*;
 import java.util.*;
 import java.nio.file.*;
 
-/** Keeps publication off while zero's old schedules remain active. */
+/** Publishes the MOTD and the broadcasts. It stays quiet while zero's old schedules are still on, so that nothing is sent twice. */
 public final class AnnouncementService implements AutoCloseable {
     private final Main plugin;
     private final AnnouncementStore store;
     private final String initialMotd;
     private long nextMotd,nextBroadcast;
     private int motdIndex,broadcastIndex;
-    private boolean changedMotd,warned;
+    private boolean changedMotd;
     public AnnouncementService(Main plugin)throws Exception{
         this.plugin=plugin;initialMotd=plugin.getServer().getNetwork().getName();
         var backend=Backend.valueOf(plugin.getConfig().getString("storage.backend","sqlite").toUpperCase(Locale.ROOT));
@@ -25,7 +25,9 @@ public final class AnnouncementService implements AutoCloseable {
         try{return (Boolean)zero.getClass().getMethod("isModuleActive",String.class).invoke(zero,"motd")||(Boolean)zero.getClass().getMethod("isModuleActive",String.class).invoke(zero,"broadcast");}
         catch(Exception|LinkageError e){return true;}
     }
-    public boolean publishing(){return plugin.getConfig().getBoolean("announcements.enabled",false)&&store.initialized()&&!legacyActive();}
+    /** @return the number of MOTD and of broadcasts that are loaded */
+    public int[] counts(){return new int[]{store.list("motd").size(),store.list("broadcast").size()};}
+    public boolean publishing(){return store.initialized()&&!legacyActive();}
     public String list(String kind){return store.list(kind).toString();}
     public int change(String kind,String action,int id,String text)throws Exception{return store.change(kind,action,id,text.replace("\\n","\n"));}
     public void importLegacy(String payload)throws Exception{
@@ -36,15 +38,11 @@ public final class AnnouncementService implements AutoCloseable {
         else if(!Files.readString(backup).equals(payload))throw new IllegalStateException("Backup mismatch");
         store.importLegacy(payload);
     }
-    public void requestEnable(){
-        boolean previous=plugin.getConfig().getBoolean("announcements.enabled",false);
-        plugin.getConfig().set("announcements.enabled",true);
-        if(!plugin.getConfig().save()){plugin.getConfig().set("announcements.enabled",previous);throw new IllegalStateException("Failed to save configuration");}
-    }
+    /** Kept for zero 1.7.18 and older, which call it after the import. The announcements need no switch any more. */
+    public void requestEnable(){}
     private long interval(String kind,int fallback){return Math.max(1,Math.min(86400,plugin.getConfig().getInt("announcements."+kind+"-seconds",fallback)))*1_000_000_000L;}
     public void pulse(){
         if(!publishing()){
-            if(plugin.getConfig().getBoolean("announcements.enabled",false)&&legacyActive()&&!warned){warned=true;plugin.getLogger().warning("zero 的 MOTD／廣播尚未停用，Display 暫不發布，避免雙重排程。");}
             return;
         }
         long now=System.nanoTime();var motds=store.list("motd");var broadcasts=store.list("broadcast");
@@ -61,15 +59,10 @@ public final class AnnouncementService implements AutoCloseable {
     }
     public boolean command(CommandSender sender,String[] args){
         if(args.length==0)return false;
-        String kind=args[0];if(!Set.of("motd","broadcast","announcements").contains(kind))return false;
+        String kind=args[0];if(!Set.of("motd","broadcast").contains(kind))return false;
         String permission="tokaDisplay."+kind+".manage";
         if(!sender.hasPermission(permission)){sender.sendMessage("沒有此項管理權限");return true;}
         try{
-            if(kind.equals("announcements")){
-                if(args.length!=2||!args[1].equals("enable"))throw new IllegalArgumentException();
-                if(legacyActive()){sender.sendMessage("請先用 /zero display-migrate 搬遷並完整重啟，避免雙重排程。");return true;}
-                requestEnable();sender.sendMessage("公告發布已啟用");return true;
-            }
             if(args.length<2)throw new IllegalArgumentException();
             if(args[1].equals("list")){sender.sendMessage(list(kind));return true;}
             int offset=args[1].equals("add")?2:3;

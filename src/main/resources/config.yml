@@ -6,9 +6,9 @@ max-sources: 32
 # 公告（MOTD 與廣播）資料的儲存方式：sqlite、json 或 yaml，由共用的 tokaStorage 提供。
 storage:
   backend: sqlite
-# 公告發布。預設關閉，要先用 zero 的搬遷指令搬完資料並完整重啟，再啟用，避免兩邊重複排程。
+# 公告發布：zero 的舊 MOTD／廣播排程關閉後（zero 設定檔的 features.motd、features.broadcast 為 false，或用 display.migrate-announcements 搬遷）就會自動發布；
+# 舊排程還開著的時候為了避免重複發送，這裡不會發布。
 announcements:
-  enabled: false
   # MOTD 輪播的間隔（秒）。
   motd-seconds: 10
   # 廣播的間隔（秒）。
