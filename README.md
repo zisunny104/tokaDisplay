@@ -41,3 +41,6 @@ Main 的完整名稱為 dev.toka.display.Main。進度 0～100；ttlTicks 1～72
 ## 建置
 
 JDK 21、Maven，先將測試核心安裝為 cn.nukkit:Nukkit:1.0-SNAPSHOT。執行 build.ps1（可傳 Maven／Repository）；產物在專案 output 與同層 plugin-modernization/output，不進版控。測試包含優先序、穩定排序、來源替換／清除、逾時及來源上限；實際畫面仍需玩家驗收。
+
+驗證紀錄（2026-10-16）：4 項仲裁測試通過；tests/smoke.py 使用獨立世界、停用資料庫，確認有／無 Display 都可啟動 zero 基本模組。這不是實際玩家畫面驗收。
+
