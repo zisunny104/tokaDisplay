@@ -45,6 +45,8 @@ messages:
   pinned-prefix: "§f= "
   # true：清掉沒有內容可讀的空白行與行尾空白，血條下面就不會留空位；false：照原樣顯示（zero 的基本資訊原本有一整行空白用來撐版面）。
   trim-blank-lines: true
+  # 血條畫在第一行的下面，所以當第一行下面還有別的內容時，要先空幾行，內容才不會被血條蓋住（預設 1）；沒有別的內容就不空。
+  bar-gap-lines: 1
   # 沒有指定秒數的固定訊息最久留多久（秒），預設 0 代表不限制。擔心有人忘記關掉固定訊息時，可以設成例如 21600（6 小時）。
   # 管理員也可以用 /display list 查看、/display unpin 移除、/display clear 清除。
   pinned-max-seconds: 0

@@ -190,12 +190,29 @@ public class LayoutTest {
 
     @Test
     public void blankLinesAndPrefixes() {
-        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 200, BarColor.WHITE, 0, "§f- ", "§f= ", true));
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 200, BarColor.WHITE, 0, "§f- ", "§f= ", true, 1));
         layout.base(" §5info  \n" + " ".repeat(60) + "\n", null, 100 * S, 0);
+        // nothing under the first line: no line is kept for the bar
+        assertEquals(" §5info", layout.frame(1).text());
         layout.pin("cd", "cooldown", 0, null, 0, 0);
         layout.flash("notice\n   \n§r  ", null, 0, 0);
-        assertEquals(" §5info\n§f= cooldown\n§f- notice", layout.frame(1).text());
+        assertEquals(" §5info\n \n§f= cooldown\n§f- notice", layout.frame(1).text());
         layout.clearMessages();
         assertEquals(" §5info", layout.frame(2).text());
+    }
+
+    @Test
+    public void theLandLineOfTheBaseGoesUnderTheBar() {
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 200, BarColor.WHITE, 0, "- ", "= ", true, 1));
+        layout.base("first\n" + " ".repeat(60) + "\nland line\n", null, 100 * S, 0);
+        assertEquals("first\n \nland line", layout.frame(1).text());
+    }
+
+    @Test
+    public void theGameNumbersOfTheColorsAreTheOnesOfTheClient() {
+        assertEquals(0, BarColor.PINK.clientIndex());
+        assertEquals(2, BarColor.RED.clientIndex());
+        assertEquals(6, BarColor.REBECCA_PURPLE.clientIndex());
+        assertEquals(7, BarColor.WHITE.clientIndex());
     }
 }

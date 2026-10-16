@@ -20,11 +20,12 @@ public final class Layout {
      * @param flashPrefix  put before the first line of every message that is sent once, such as "§f- "
      * @param pinnedPrefix put before the first line of every pinned message, such as "§f= "
      * @param trimBlank    true to drop the lines that have nothing to read and the spaces at the end of a line
+     * @param barGapLines  lines kept empty under the first line for the bar, only when something follows
      */
     public record Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor,
-                           long maxPinnedLifetime, String flashPrefix, String pinnedPrefix, boolean trimBlank) {
+                           long maxPinnedLifetime, String flashPrefix, String pinnedPrefix, boolean trimBlank, int barGapLines) {
         public Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor, long maxPinnedLifetime) {
-            this(flashSeconds, maxFlash, maxPinned, maxText, defaultColor, maxPinnedLifetime, "", "", false);
+            this(flashSeconds, maxFlash, maxPinned, maxText, defaultColor, maxPinnedLifetime, "", "", false, 0);
         }
     }
 
@@ -226,19 +227,38 @@ public final class Layout {
      */
     public Frame frame(long now) {
         this.prune(now);
-        List<String> lines = new ArrayList<>();
+        // The first line of the base information, and everything under it
+        String first = "";
+        List<String> after = new ArrayList<>();
         if (this.baseAlive(now)) {
-            this.addLines(lines, this.baseText, "");
+            String clean = this.settings.trimBlank() ? trimBlank(this.baseText) : this.baseText;
+            int newline = clean.indexOf('\n');
+            first = newline < 0 ? clean : clean.substring(0, newline);
+            if (newline >= 0 && !clean.substring(newline + 1).isEmpty()) {
+                after.add(clean.substring(newline + 1));
+            }
         }
 
         List<PinnedMessage> ordered = new ArrayList<>(this.pinned.values());
         ordered.sort(Comparator.comparingInt(PinnedMessage::priority).reversed().thenComparingLong(PinnedMessage::order));
         for (PinnedMessage message : ordered) {
-            this.addLines(lines, message.text(), this.settings.pinnedPrefix());
+            this.addLines(after, message.text(), this.settings.pinnedPrefix());
         }
         for (FlashMessage message : this.flashes) {
-            this.addLines(lines, message.text(), this.settings.flashPrefix());
+            this.addLines(after, message.text(), this.settings.flashPrefix());
         }
+
+        List<String> lines = new ArrayList<>();
+        if (!first.isEmpty()) {
+            lines.add(first);
+            // The bar is drawn under the first line; the lines that follow have to start under the bar
+            if (this.settings.barGapLines() > 0 && !after.isEmpty()) {
+                for (int i = 0; i < this.settings.barGapLines(); i++) {
+                    lines.add(" ");
+                }
+            }
+        }
+        lines.addAll(after);
 
         DisplayMessage chosen = null;
         List<DisplayMessage> all = new ArrayList<>(ordered);

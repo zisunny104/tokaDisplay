@@ -7,7 +7,6 @@ import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.player.PlayerQuitEvent;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
-import cn.nukkit.utils.BossBarColor;
 import cn.nukkit.utils.DummyBossBar;
 import cn.nukkit.scoreboard.Scoreboard;
 import java.util.*;
@@ -41,7 +40,7 @@ public final class Main extends PluginBase implements Listener {
     private static final class State {
         final Layout layout;final Channel<Sidebar> sidebars;
         Long bossId;DummyBossBar boss;Scoreboard board;Sidebar shown;
-        String shownText;float shownFill=-1;BarColor shownColor;
+        String shownText;float shownFill=-1;BarColor shownColor;long colorAt;
         State(int limit,Layout.Settings settings){layout=new Layout(settings);sidebars=new Channel<>(limit);}
     }
     public void onEnable(){
@@ -63,7 +62,8 @@ public final class Main extends PluginBase implements Listener {
                 Math.max(1,Math.min(32,getConfig().getInt("messages.max-pinned",8))),
                 8192,fallback,Math.max(0,Math.min(2592000,getConfig().getInt("messages.pinned-max-seconds",0)))*Layout.SECOND,
                 getConfig().getString("messages.flash-prefix","§f- "),getConfig().getString("messages.pinned-prefix","§f= "),
-                getConfig().getBoolean("messages.trim-blank-lines",true));
+                getConfig().getBoolean("messages.trim-blank-lines",true),
+                Math.max(0,Math.min(3,getConfig().getInt("messages.bar-gap-lines",1))));
         getServer().getPluginManager().registerEvents(this,this);instance=this;
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
     }
@@ -151,6 +151,13 @@ public final class Main extends PluginBase implements Listener {
     }
     public static void remove(Player player,String source){Main main=service();State state=main.players.get(player);if(state!=null){state.layout.unpin(source);state.sidebars.remove(source);}}
     public static void removeSource(String source){Main main=service();for(State state:main.players.values()){state.layout.unpin(source);state.sidebars.remove(source);}}
+    /** The core only knows seven colors and numbers white wrong for the client, so the packet is made here. */
+    private static void sendColor(Player player,DummyBossBar bar,BarColor color){
+        var packet=new cn.nukkit.network.protocol.BossEventPacket();
+        packet.bossEid=bar.getBossBarId();packet.type=cn.nukkit.network.protocol.BossEventPacket.TYPE_TEXTURE;
+        packet.color=color.clientIndex();packet.overlay=0;
+        player.dataPacket(packet);
+    }
     private void render(){
         announcements.pulse();
         long now=System.nanoTime();
@@ -162,15 +169,15 @@ public final class Main extends PluginBase implements Listener {
                 if(!show){if(state.bossId!=null)player.removeBossBar(state.bossId);state.bossId=null;state.boss=null;state.shownText=null;}
                 else {
                     Layout.Frame frame=state.layout.frame(now);
-                    BossBarColor color=BossBarColor.valueOf(frame.bar().color().name());
                     if(state.bossId==null||!player.getDummyBossBars().containsKey(state.bossId)){
-                        state.boss=new DummyBossBar.Builder(player).text(frame.text()).length(frame.bar().fill()).color(color).build();state.bossId=player.createBossBar(state.boss);
-                        state.shownText=frame.text();state.shownFill=frame.bar().fill();state.shownColor=frame.bar().color();
+                        state.boss=new DummyBossBar.Builder(player).text(frame.text()).length(frame.bar().fill()).build();state.bossId=player.createBossBar(state.boss);
+                        state.shownText=frame.text();state.shownFill=frame.bar().fill();state.shownColor=null;
                     }else{
                         if(!frame.text().equals(state.shownText)){state.boss.setText(frame.text());state.shownText=frame.text();}
                         if(frame.bar().fill()!=state.shownFill){state.boss.setLength(frame.bar().fill());state.shownFill=frame.bar().fill();}
-                        if(frame.bar().color()!=state.shownColor){state.boss.setColor(color);state.shownColor=frame.bar().color();}
                     }
+                    // The color is sent when it changes and now and then again, because the game forgets it when the bar is shown again
+                    if(frame.bar().color()!=state.shownColor||now-state.colorAt>2_000_000_000L){sendColor(player,state.boss,frame.bar().color());state.shownColor=frame.bar().color();state.colorAt=now;}
                 }
                 Sidebar sidebar=state.sidebars.winner(now).orElse(null);
                 if(!getConfig().getBoolean("sidebar.enabled",true))sidebar=null;
