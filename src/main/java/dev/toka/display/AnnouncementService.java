@@ -55,7 +55,7 @@ public final class AnnouncementService implements AutoCloseable {
         }
         if(now>=nextBroadcast&&broadcasts.size()>0&&!plugin.getServer().getOnlinePlayers().isEmpty()){
             String text=broadcasts.get(Math.floorMod(broadcastIndex++,broadcasts.size())).getAsJsonObject().get("text").getAsString();
-            for(Player player:plugin.getServer().getOnlinePlayers().values())Main.bossBar(player,"display:broadcast",text,100,50,300);
+            for(Player player:plugin.getServer().getOnlinePlayers().values())Main.flash(player,text,0,-1f,null);
             nextBroadcast=now+interval("broadcast",25);
         }
     }

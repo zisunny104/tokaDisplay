@@ -3,16 +3,42 @@ update-ticks: 5
 # 每位玩家、每種顯示管道的來源上限，避免來源未清理而持續累積。
 max-sources: 32
 
+# 公告（MOTD 與廣播）資料的儲存方式：sqlite、json 或 yaml，由共用的 tokaStorage 提供。
 storage:
   backend: sqlite
+# 公告發布。預設關閉，要先用 zero 的搬遷指令搬完資料並完整重啟，再啟用，避免兩邊重複排程。
 announcements:
   enabled: false
+  # MOTD 輪播的間隔（秒）。
   motd-seconds: 10
+  # 廣播的間隔（秒）。
   broadcast-seconds: 25
 
-
-sidebar:
-  enabled: true
+# 頂部血條區與側邊記分板的顯示。關掉後對應的畫面都不會出現。
 bossbar:
   enabled: true
+sidebar:
+  enabled: true
 
+# 血條的預設顏色。遊戲只有 7 種血條顏色：pink、blue、red、green、yellow、purple、white。
+default-color: white
+
+# 顏色別名：左邊是別名，右邊是上面 7 種顏色之一。其他插件送訊息時可以直接用別名，
+# 之後想換顏色，只要改這裡，不用改插件。沒填顏色時使用上面的預設顏色。
+colors:
+  cooldown: red
+  ready: green
+  notice: yellow
+
+# 訊息區（血條下面的文字）。第一行是基本資訊，只有它的擁有者能改；
+# 接著是固定訊息，最後是只發送一次、閃過就消失的訊息。
+messages:
+  # 只發送一次的訊息，發送時沒有指定秒數就用這個秒數。
+  flash-seconds: 15
+  # 同時最多顯示幾則只發送一次的訊息，超過時最舊的先消失。
+  max-flash-lines: 4
+  # 每位玩家同時最多幾則固定訊息。
+  max-pinned: 8
+  # 沒有指定秒數的固定訊息最久留多久（秒），預設 0 代表不限制。擔心有人忘記關掉固定訊息時，可以設成例如 21600（6 小時）。
+  # 管理員也可以用 /display list 查看、/display unpin 移除、/display clear 清除。
+  pinned-max-seconds: 0
