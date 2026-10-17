@@ -9,14 +9,10 @@
 cmd:
   display:
     usage: "§7/display list [玩家] | unpin <玩家或*> <訊息id或編號> | clear <玩家或*> | testbar [顏色] [填充度] | motd|broadcast ... | help"
-    list:
-      usage: "§7用法：/display list [玩家]"
     unpin:
       usage: "§7用法：/display unpin <玩家或*> <訊息id或編號>"
     clear:
       usage: "§7用法：/display clear <玩家或*>"
-    testbar:
-      usage: "§7用法：/display testbar <顏色> [填充度]"
     announce:
       usage: "§7/display motd|broadcast list|add <文字>|set <ID> <文字>|remove <ID>"
 
@@ -77,8 +73,10 @@ log:
   # ${0} = 廣播數量
   broadcastLoaded: "§b載入廣播共 §a${0} §b個"
   badDefaultColor: "§edefault-color 不是可用的顏色，改用白色"
-  # ${0} = 不認得的顏色名稱、${1} = 可用的顏色與別名（以、分隔）
+  # ${0} = 不認得的顏色名稱、${1} = 可用的顏色與別名（以逗號分隔）
   badBarColor: "§e不認得的血條顏色「${0}」，改用預設顏色；可用：${1}"
+  # ${0} = 例外類別名稱
+  announceFailed: "§e公告發布失敗：${0}"
   # ${0} = 例外類別名稱
   playerPaused: "§e玩家顯示暫停：${0}"
   storageCloseFailed: "§e公告儲存關閉失敗"

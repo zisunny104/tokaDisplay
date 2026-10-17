@@ -1,6 +1,6 @@
 name: tokaDisplay
 main: dev.toka.display.Main
-version: "0.2.8"
+version: "0.2.9"
 api: ["1.0.4"]
 author: zisunny104
 load: POSTWORLD
@@ -13,14 +13,10 @@ commands:
 permissions:
   tokaDisplay.admin:
     default: op
-
-
   tokaDisplay.use:
     default: true
   tokaDisplay.motd.manage:
     default: op
   tokaDisplay.broadcast.manage:
-    default: op
-  tokaDisplay.announcements.manage:
     default: op
 
