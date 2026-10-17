@@ -88,10 +88,15 @@ public final class Main extends PluginBase implements Listener {
     private static long ticks(int ttlTicks){if(ttlTicks<1||ttlTicks>72000)throw new IllegalArgumentException("ttlTicks 1..72000");return ttlTicks*50_000_000L;}
     /** @return 0 for "use the default" */
     private static long seconds(int seconds){if(seconds<0||seconds>86400)throw new IllegalArgumentException("seconds 0..86400");return seconds*Layout.SECOND;}
+    private String colorNames(){
+        java.util.TreeSet<String> names=new java.util.TreeSet<>(aliases.keySet());
+        for(BarColor c:BarColor.values())names.add(c.name().toLowerCase(Locale.ROOT));
+        return String.join("、",names);
+    }
     private BarColor color(String name){
         try{return BarColor.parse(name,aliases,settings.defaultColor());}
         catch(IllegalArgumentException error){
-            if(!warnedColor){warnedColor=true;getLogger().warning(messages.text("log.badBarColor",name));}
+            if(!warnedColor){warnedColor=true;getLogger().warning(messages.text("log.badBarColor",name,colorNames()));}
             return settings.defaultColor();
         }
     }

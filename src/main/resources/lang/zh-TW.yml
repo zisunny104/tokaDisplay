@@ -23,12 +23,12 @@ cmd:
 # ---- /display help 的多行說明（help.*）：第一行是標題 ----
 help:
   display:
-    - "§6§ltokaDisplay 說明"
+    - "§6=== §f§ltokaDisplay 說明§r §6==="
     - "§e/display §7- §b顯示服務狀態與用法"
     - "§e/display help §7- §b顯示這份說明"
     - "§e/display list [玩家] §7- §b列出固定與單次訊息（不指定玩家就列出全部）"
     - "§e/display unpin <玩家或*> <訊息id或編號> §7- §b移除指定訊息，* 代表所有玩家"
-    - "§e/display clear <玩家或*> §7- §b清除固定與單次訊息，基本資訊不受影響"
+    - "§e/display clear <玩家或*> §7- §b清除固定與單次訊息"
     - "§e/display testbar <顏色> [填充度] §7- §b在自己的血條顯示 10 秒測試（填充度 0 到 100）"
     - "§e/display motd list §7- §b列出所有 MOTD"
     - "§e/display motd add <文字> §7- §b新增 MOTD"
@@ -46,16 +46,16 @@ msg:
       # ${4} = 優先權、${5} = 剩餘時間（status.forever／status.remaining）、${6} = 訊息內容（最多 30 字）
       row: "§a${0} §7#§a${1} §b${2} id=§a${3} §b優先權=§a${4} ${5} §7${6}"
       # ${0} = 訊息總數
-      total: "§b共 §a${0} §b則訊息（基本資訊那一行不列出）"
+      total: "§b共 §a${0} §b則訊息（不含基本資訊）"
     # ${0} = 被移除訊息的玩家數量、${1} = 使用者輸入的訊息 id 或編號
     unpinned: "§a已從 ${0} 位玩家移除訊息 ${1}"
     # ${0} = 被清除的玩家數量
-    cleared: "§a已清除 ${0} 位玩家的固定與單次訊息，基本資訊不受影響"
+    cleared: "§a已清除 ${0} 位玩家的固定與單次訊息"
     testbar:
       # 顯示在血條上的文字。${0} = 顏色（未指定時為 status.defaultColor）、${1} = 填充度（整數）
       text: "§e血條測試：${0} ${1}%"
-      # 回覆給指令使用者。後面接用法
-      started: "§a已用 10 秒顯示測試血條，用法：/display testbar <顏色> [填充度]"
+      # 回覆給指令使用者；無參數
+      started: "§a已顯示測試血條 10 秒"
   announce:
     # ${0} = motd 或 broadcast、${1} = 該筆的 ID
     saved: "§a已儲存 ${0} #${1}"
@@ -63,7 +63,7 @@ msg:
 # ---- 錯誤與拒絕（err.*） ----
 err:
   # ${0} = 玩家名稱（使用者輸入）
-  playerNotFound: "§c找不到玩家 ${0}（需要完整名稱，且要在線上）"
+  playerNotFound: "§c找不到玩家 ${0}（需完整名稱且在線）"
   playerOnly: "§c只能在遊戲內使用"
   fillRange: "§c填充度要是 0 到 100 的數字"
   noManagePermission: "§c沒有此項管理權限"
@@ -77,8 +77,8 @@ log:
   # ${0} = 廣播數量
   broadcastLoaded: "§b載入廣播共 §a${0} §b個"
   badDefaultColor: "§edefault-color 不是可用的顏色，改用白色"
-  # ${0} = 不認得的顏色名稱
-  badBarColor: "§e不認得的血條顏色「${0}」，改用預設顏色；可用的顏色與別名請看 config.yml"
+  # ${0} = 不認得的顏色名稱、${1} = 可用的顏色與別名（以、分隔）
+  badBarColor: "§e不認得的血條顏色「${0}」，改用預設顏色；可用：${1}"
   # ${0} = 例外類別名稱
   playerPaused: "§e玩家顯示暫停：${0}"
   storageCloseFailed: "§e公告儲存關閉失敗"

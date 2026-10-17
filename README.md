@@ -1,6 +1,6 @@
 # tokaDisplay
 
-Nukkit 共用資訊顯示服務，Java 21，版本 0.2.1。最終讓 zero 的顯示功能有獨立歸屬。
+Nukkit 共用資訊顯示服務，Java 21，版本 0.2.8。最終讓 zero 的顯示功能有獨立歸屬。
 
 ## 第一階段已實作
 
@@ -19,7 +19,7 @@ Nukkit 共用資訊顯示服務，Java 21，版本 0.2.1。最終讓 zero 的顯
 
 ## 使用
 
-將 tokaDisplay-0.2.7.jar 與 zero-1.7.18.jar 放入 plugins，移走舊版 zero JAR，完整重啟。zero 使用可選整合，不用額外安裝 ScoreboardAPI。缺少 Display 時 zero 暫用舊顯示，作為移除舊實作前的相容措施；Display 已啟用但渲染失敗時不建立競爭顯示，也不停止傳送／保護等業務。
+將 tokaDisplay-0.2.8.jar 與 zero-1.7.18.jar 放入 plugins，移走舊版 zero JAR，完整重啟。zero 使用可選整合，不用額外安裝 ScoreboardAPI。缺少 Display 時 zero 暫用舊顯示，作為移除舊實作前的相容措施；Display 已啟用但渲染失敗時不建立競爭顯示，也不停止傳送／保護等業務。
 
 不要使用 reload。此版本尚未在正式 VPS 或真實玩家畫面驗收，不會自動更新正式服。
 
