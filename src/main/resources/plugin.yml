@@ -1,6 +1,6 @@
 name: tokaDisplay
 main: dev.toka.display.Main
-version: "0.2.10"
+version: "0.3.0"
 api: ["1.0.4"]
 author: zisunny104
 load: POSTWORLD

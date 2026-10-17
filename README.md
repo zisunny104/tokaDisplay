@@ -42,6 +42,22 @@
 | `announcements.motd-seconds` | `10` | MOTD 輪播間隔（秒） |
 | `announcements.broadcast-seconds` | `25` | 廣播間隔（秒） |
 | `bossbar.enabled`、`sidebar.enabled` | `true` | 關閉後對應畫面不會出現 |
+| `sidebar.title` | 空白標題 | 側欄標題，可用色碼 |
+| `sidebar.refresh-ticks` | `20` | 組合並更新側欄的間隔（tick），內容沒變不會重送 |
+| `sidebar.layout` | 見下 | 側欄由上而下的內容，項目是區段 id 或 `-`（空白行） |
+
+### 側欄版面
+
+側欄由 tokaDisplay 組合，其他插件只提供「區段」（一行文字）。`sidebar.layout` 預設：
+
+```yaml
+sidebar:
+  layout: [region, position, bearing, "-", money, coin, "-", item, "-", score, tps]
+```
+
+內建區段有 `position`（座標）、`bearing`（方位）、`item`（手持物品）、`tps`、`ping`；`region`、`money`、`coin`、`score`、`area` 等由其他插件註冊。沒有註冊或當下沒內容的區段會略過，連續或頭尾的空白行自動收斂，最多 15 行，超過的略過。插件用 `sidebar` 直接送出記分板時，優先於這個版面。
+
+（圖：側邊記分板的預設版面）
 | `default-color` | `white` | 沒指定顏色時的血條顏色 |
 | `colors` | cooldown: red、ready: green、notice: yellow | 顏色別名 |
 | `messages.flash-seconds` | `15` | 單次訊息預設停留秒數 |
@@ -64,6 +80,8 @@
 | `unpin` | 玩家、id | 移除自己送出的固定訊息 |
 | `bossBar` | 玩家、來源、文字、進度、優先序、存活 tick | 舊版血條介面，相容用 |
 | `sidebar` | 玩家、來源、標題、行、分數、優先序、存活 tick | 顯示側邊記分板（最多 15 行，行文字不可重複） |
+| `registerSection` | id、函式（玩家 → 一行文字，null 或空字串代表不顯示）；可在前面加 owner 名稱 | 註冊側欄區段，位置由 `sidebar.layout` 決定；函式丟例外時該區段本輪略過 |
+| `unregisterSection`、`unregisterSections` | id／owner 名稱 | 移除區段；插件停用時用 owner 名稱一次移除自己註冊的區段 |
 | `remove`、`removeSource` | 玩家與來源／來源 | 移除自己建立的血條訊息與記分板 |
 | `listMessages`、`removeMessage`、`clearMessages` | 玩家（與 id 或編號） | 查看、移除、清除訊息（管理指令即用這些） |
 
@@ -75,4 +93,4 @@
 - **MOTD 與廣播沒有動靜？** 確認 `announcements.enabled` 為 `true`。
 - **某則固定訊息一直留著？** 用 `/display list` 找到後以 `/display unpin` 移除。
 
-目前版本 0.2.10
+目前版本 0.3.0

@@ -13,6 +13,7 @@ import cn.nukkit.utils.DummyBossBar;
 import cn.nukkit.scoreboard.Scoreboard;
 import dev.toka.i18n.Messages;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * Shows the boss bar area and the sidebar for the other plugins.
@@ -34,6 +35,12 @@ public final class Main extends PluginBase implements Listener {
     private Layout.Settings settings;
     private Map<String,String> aliases=Map.of();
     private boolean warnedColor;
+    private record Section(String owner,Function<Player,String> line) {}
+    private final Map<String,Section> sections=new LinkedHashMap<>();
+    private final Set<String> failedSections=new HashSet<>();
+    private boolean warnedOverflow;
+    private List<String> sidebarLayout=List.of();
+    private String sidebarTitle="";
     private AnnouncementService announcements;
     private Messages messages;
     /** The texts that the plugin shows, shared with the announcements. */
@@ -49,7 +56,7 @@ public final class Main extends PluginBase implements Listener {
     public static int changeAnnouncement(String kind,String action,int id,String text)throws Exception{return service().announcements.change(kind,action,id,text);}
     private static final class State {
         final Layout layout;final Channel<Sidebar> sidebars;
-        Long bossId;DummyBossBar boss;Scoreboard board;Sidebar shown;
+        Long bossId;DummyBossBar boss;Scoreboard board;Sidebar shown,composed;
         String shownText;float shownFill=-1;BarColor shownColor;long colorAt,reshownAt;
         State(int limit,Layout.Settings settings){layout=new Layout(settings);sidebars=new Channel<>(limit);}
     }
@@ -77,7 +84,54 @@ public final class Main extends PluginBase implements Listener {
                 Math.max(0,Math.min(3,getConfig().getInt("messages.bar-gap-lines",1))),
                 Math.max(0,Math.min(200,getConfig().getInt("messages.status-min-width",60))));
         getServer().getPluginManager().registerEvents(this,this);instance=this;
+        sidebarTitle=getConfig().getString("sidebar.title","§e                              §r");
+        sidebarLayout=getConfig().exists("sidebar.layout")?getConfig().getStringList("sidebar.layout"):DEFAULT_LAYOUT;
+        registerBuiltins();
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
+        getServer().getScheduler().scheduleRepeatingTask(this,this::compose,Math.max(1,getConfig().getInt("sidebar.refresh-ticks",20)));
+    }
+    /** Used only when an older config.yml has no sidebar.layout. */
+    private static final List<String> DEFAULT_LAYOUT=List.of("region","position","bearing","-","money","coin","-","item","-","score","tps");
+    /**
+     * Registers a sidebar section: one line that sidebar.layout in config.yml places. Registering an id again replaces it.
+     *
+     * @param line the text for this player, null or empty when the line is not shown now
+     */
+    public static void registerSection(String id,Function<Player,String> line){registerSection("",id,line);}
+    /** Same, with an owner name so that the plugin can remove all of its sections with {@link #unregisterSections}. */
+    public static void registerSection(String owner,String id,Function<Player,String> line){
+        Main main=service();Objects.requireNonNull(owner);Objects.requireNonNull(line);
+        if(id==null||id.isBlank()||id.length()>64||SidebarCompose.SEPARATOR.equals(id))throw new IllegalArgumentException("id");
+        main.sections.put(id,new Section(owner,line));main.failedSections.remove(id);
+    }
+    public static void unregisterSection(String id){service().sections.remove(id);}
+    /** Removes every section registered with this owner name; call it when the plugin is disabled. */
+    public static void unregisterSections(String owner){Objects.requireNonNull(owner);service().sections.values().removeIf(s->s.owner().equals(owner));}
+    private void registerBuiltins(){
+        String own=getName();
+        registerSection(own,"position",p->messages.text("ui.sidebar.position",(int)p.getX(),(int)p.getY(),(int)p.getZ()));
+        registerSection(own,"bearing",p->messages.text("ui.sidebar.bearing",messages.lines("ui.sidebar.directions").get((int)((((p.getYaw()%360)+360)%360+22.5)/45)%8)));
+        registerSection(own,"item",p->{var item=p.getInventory().getItemInHand();return messages.text("ui.sidebar.item",item.getId(),item.getDamage());});
+        registerSection(own,"tps",p->{int tps=(int)getServer().getTicksPerSecond();return messages.text("ui.sidebar.tps",tps==20?"§a":"§e",tps);});
+        registerSection(own,"ping",p->{int ping=p.getPing();return messages.text("ui.sidebar.ping",ping<=75?"§a":ping<=100?"§e":ping<150?"§c":"§7",ping);});
+    }
+    /** Composes the layout for every player whose client is ready; render shows it when no plugin sent a sidebar. */
+    private void compose(){
+        boolean enabled=getConfig().getBoolean("sidebar.enabled",true);
+        for(Player player:new ArrayList<>(getServer().getOnlinePlayers().values())){
+            if(!player.isOnline()||!player.spawned||!player.locallyInitialized)continue;
+            try{
+                Sidebar next=null;
+                if(enabled){
+                    var result=SidebarCompose.compose(sidebarLayout,id->{Section section=sections.get(id);return section==null?null:section.line().apply(player);},15);
+                    for(String id:result.failed())if(failedSections.add(id))getLogger().warning(messages.text("log.sectionFailed",id));
+                    if(result.truncated()&&!warnedOverflow){warnedOverflow=true;getLogger().warning(messages.text("log.sidebarTooLong"));}
+                    if(!result.lines().isEmpty())next=new Sidebar(sidebarTitle,result.lines(),result.scores());
+                }
+                State state=next==null?players.get(player):state(player);
+                if(state!=null)state.composed=next;
+            }catch(RuntimeException|LinkageError error){getLogger().warning(messages.text("log.playerPaused",error.getClass().getSimpleName()));}
+        }
     }
     public static boolean ready(){return instance!=null&&instance.isEnabled();}
     private static Main service(){
@@ -201,7 +255,8 @@ public final class Main extends PluginBase implements Listener {
                     // The color is sent when it changes and now and then again, because the game forgets it when the bar is shown again
                     if(frame.bar().color()!=state.shownColor||now-state.colorAt>2_000_000_000L){sendColor(player,state.boss,frame.bar().color());state.shownColor=frame.bar().color();state.colorAt=now;}
                 }
-                Sidebar sidebar=state.sidebars.winner(now).orElse(null);
+                // A sidebar sent by a plugin goes before the composed one
+                Sidebar sidebar=state.sidebars.winner(now).orElse(state.composed);
                 if(!sidebarEnabled)sidebar=null;
                 if(!Objects.equals(sidebar,state.shown)){
                     if(sidebar==null){if(state.board!=null)state.board.hideFor(player);state.board=null;state.shown=null;}
@@ -214,7 +269,7 @@ public final class Main extends PluginBase implements Listener {
                         state.board.unholdUpdates();if(fresh)state.board.showTo(player);state.shown=sidebar;
                     }
                 }
-                if(state.layout.isEmpty(now)&&state.sidebars.empty()){clear(player,state);players.remove(player);}
+                if(state.layout.isEmpty(now)&&state.sidebars.empty()&&state.composed==null){clear(player,state);players.remove(player);}
             }catch(RuntimeException|LinkageError error){clear(player,state);players.remove(player);getLogger().warning(messages.text("log.playerPaused",error.getClass().getSimpleName()));}
         }
     }

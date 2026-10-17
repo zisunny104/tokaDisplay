@@ -37,4 +37,5 @@ public class LangTest {
         Messages m=messages(new ArrayList<>());
         for(String key:used)assertTrue("missing key "+key,m.has(key));
     }
+    @Test public void bearingHasEightDirections()throws Exception{assertEquals(8,messages(new ArrayList<>()).lines("ui.sidebar.directions").size());}
 }
