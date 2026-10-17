@@ -52,10 +52,10 @@
 
 ```yaml
 sidebar:
-  layout: [region, position, bearing, "-", money, coin, "-", item, "-", score, tps]
+  layout: [region, position, bearing, "-", money, coin, "-", item, "-", score, tps, ping, area]
 ```
 
-內建區段有 `position`（座標）、`bearing`（方位）、`item`（手持物品）、`tps`、`ping`；`region`、`money`、`coin`、`score`、`area` 等由其他插件註冊。沒有註冊或當下沒內容的區段會略過，連續或頭尾的空白行自動收斂，最多 15 行，超過的略過。插件用 `sidebar` 直接送出記分板時，優先於這個版面。
+內建區段有 `position`（座標）、`bearing`（方位）、`item`（手持物品）、`tps`、`ping`；`region`、`money`、`coin`、`score`、`area` 由其他插件註冊。沒有註冊或當下沒內容的區段會略過，連續或頭尾的空白行自動收斂，最多 15 行，超過的略過。插件用 `sidebar` 直接送出記分板時，優先於這個版面。
 
 （圖：側邊記分板的預設版面）
 | `default-color` | `white` | 沒指定顏色時的血條顏色 |

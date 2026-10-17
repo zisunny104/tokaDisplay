@@ -40,6 +40,8 @@ sidebar:
     - "-"
     - score
     - tps
+    - ping
+    - area
 
 # 血條的預設顏色。遊戲只有 7 種血條顏色：pink、blue、red、green、yellow、purple、white。
 default-color: white
