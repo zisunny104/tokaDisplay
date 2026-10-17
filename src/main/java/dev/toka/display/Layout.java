@@ -44,6 +44,9 @@ public final class Layout {
     private final Map<String, PinnedMessage> pinned = new LinkedHashMap<>();
     private final ArrayDeque<FlashMessage> flashes = new ArrayDeque<>();
     private long counter;
+    /** The last frame, kept until a message changes or the first message runs out. */
+    private Frame cached;
+    private long cachedUntil;
 
     public Layout(Settings settings) {
         this.settings = Objects.requireNonNull(settings);
@@ -78,6 +81,7 @@ public final class Layout {
         this.baseText = text;
         this.baseBar = bar != null ? bar : new BarEffect(100, this.settings.defaultColor());
         this.baseExpiresAt = now + lifetime;
+        this.cached = null;
     }
 
     /**
@@ -94,6 +98,7 @@ public final class Layout {
             throw new IllegalStateException("Too many pinned messages");
         }
         long order = old != null ? old.order() : ++this.counter;
+        this.cached = null;
         this.pinned.put(id, new PinnedMessage(id, text, priority, expiry(now, this.pinnedLifetime(lifetime)), bar, order));
     }
 
@@ -101,6 +106,7 @@ public final class Layout {
      * @return true when there was a pinned message with the id
      */
     public boolean unpin(String id) {
+        this.cached = null;
         return this.pinned.remove(id) != null;
     }
 
@@ -112,6 +118,7 @@ public final class Layout {
     public void flash(String text, BarEffect bar, long lifetime, long now) {
         this.checkText(text);
         long stay = lifetime > 0 ? lifetime : this.settings.flashSeconds() * SECOND;
+        this.cached = null;
         this.flashes.addLast(new FlashMessage("flash-" + (this.counter + 1), text, 0, now + stay, bar, ++this.counter));
         while (this.flashes.size() > this.settings.maxFlash()) {
             this.flashes.removeFirst();
@@ -173,6 +180,7 @@ public final class Layout {
         if (target == null) {
             return false;
         }
+        this.cached = null;
         if (target instanceof PinnedMessage) {
             return this.pinned.remove(target.id()) != null;
         }
@@ -183,6 +191,7 @@ public final class Layout {
      * Removes every pinned message and every message sent once. The base information stays.
      */
     public void clearMessages() {
+        this.cached = null;
         this.pinned.clear();
         this.flashes.clear();
     }
@@ -248,6 +257,9 @@ public final class Layout {
      * @return what to show now: the base, then the pinned messages by priority, then the messages sent once
      */
     public Frame frame(long now) {
+        if (this.cached != null && now < this.cachedUntil) {
+            return this.cached;
+        }
         this.prune(now);
         // The first line of the base information, and everything under it
         String first = "";
@@ -307,6 +319,14 @@ public final class Layout {
         }
 
         BarEffect bar = chosen != null ? chosen.bar() : this.baseBar;
-        return new Frame(String.join("\n", lines), bar);
+        long until = this.baseAlive(now) ? this.baseExpiresAt : Long.MAX_VALUE;
+        for (DisplayMessage message : all) {
+            if (message.expiresAt() != 0) {
+                until = Math.min(until, message.expiresAt());
+            }
+        }
+        this.cached = new Frame(String.join("\n", lines), bar);
+        this.cachedUntil = until;
+        return this.cached;
     }
 }

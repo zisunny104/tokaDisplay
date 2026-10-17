@@ -217,4 +217,19 @@ public class LayoutTest {
         assertEquals(6, BarColor.REBECCA_PURPLE.clientIndex());
         assertEquals(7, BarColor.WHITE.clientIndex());
     }
+
+    @Test
+    public void cachedFrameFollowsChangesAndExpiry() {
+        Layout layout = layout();
+        layout.base("info", null, 100 * S, 0);
+        layout.flash("one", null, 5 * S, 0);
+        assertEquals("info\none", layout.frame(1).text());
+        assertEquals("info\none", layout.frame(2 * S).text());
+        layout.pin("p", "pin", 0, null, 0, 3 * S);
+        assertEquals("info\npin\none", layout.frame(3 * S).text());
+        assertEquals("info\npin", layout.frame(6 * S).text());
+        layout.unpin("p");
+        assertEquals("info", layout.frame(6 * S).text());
+        assertEquals("", layout.frame(101 * S).text());
+    }
 }

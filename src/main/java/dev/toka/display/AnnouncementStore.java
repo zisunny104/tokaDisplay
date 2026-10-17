@@ -26,6 +26,9 @@ public final class AnnouncementStore implements AutoCloseable {
     }
     public JsonArray list(String kind){kind(kind);return state==null?new JsonArray():state.getAsJsonArray(kind).deepCopy();}
     public boolean initialized(){return state!=null;}
+    public int count(String kind){kind(kind);return state==null?0:state.getAsJsonArray(kind).size();}
+    /** @return the text at a position of the list, without copying the list */
+    public String textAt(String kind,int index){kind(kind);return state.getAsJsonArray(kind).get(index).getAsJsonObject().get("text").getAsString();}
     private static JsonObject content(JsonObject input){
         validate(input);JsonObject out=new JsonObject();out.addProperty("schema",1);
         for(String kind:List.of("motd","broadcast")){

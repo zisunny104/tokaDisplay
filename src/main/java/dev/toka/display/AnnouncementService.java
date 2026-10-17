@@ -14,19 +14,23 @@ public final class AnnouncementService implements AutoCloseable {
     private long nextMotd,nextBroadcast;
     private int motdIndex,broadcastIndex;
     private boolean changedMotd;
+    private java.lang.reflect.Method moduleCheck;
     public AnnouncementService(Main plugin)throws Exception{
         this.plugin=plugin;initialMotd=plugin.getServer().getNetwork().getName();
         var backend=Backend.valueOf(plugin.getConfig().getString("storage.backend","sqlite").toUpperCase(Locale.ROOT));
         store=new AnnouncementStore(new StoreConfig(backend,plugin.getDataFolder().toPath().resolve("storage").resolve(backend.name().toLowerCase(Locale.ROOT)),1));
     }
-    public boolean legacyActive(){
+    private boolean legacyActive(){
         var zero=plugin.getServer().getPluginManager().getPlugin("zero");
         if(zero==null||!zero.isEnabled())return false;
-        try{return (Boolean)zero.getClass().getMethod("isModuleActive",String.class).invoke(zero,"motd")||(Boolean)zero.getClass().getMethod("isModuleActive",String.class).invoke(zero,"broadcast");}
+        try{
+            if(moduleCheck==null||moduleCheck.getDeclaringClass()!=zero.getClass())moduleCheck=zero.getClass().getMethod("isModuleActive",String.class);
+            return (Boolean)moduleCheck.invoke(zero,"motd")||(Boolean)moduleCheck.invoke(zero,"broadcast");
+        }
         catch(Exception|LinkageError e){return true;}
     }
     /** @return the number of MOTD and of broadcasts that are loaded */
-    public int[] counts(){return new int[]{store.list("motd").size(),store.list("broadcast").size()};}
+    public int[] counts(){return new int[]{store.count("motd"),store.count("broadcast")};}
     public boolean publishing(){return plugin.getConfig().getBoolean("announcements.enabled",true)&&store.initialized()&&!legacyActive();}
     public String list(String kind){return store.list(kind).toString();}
     public int change(String kind,String action,int id,String text)throws Exception{return store.change(kind,action,id,text.replace("\\n","\n"));}
@@ -41,17 +45,15 @@ public final class AnnouncementService implements AutoCloseable {
     }
     private long interval(String kind,int fallback){return Math.max(1,Math.min(86400,plugin.getConfig().getInt("announcements."+kind+"-seconds",fallback)))*1_000_000_000L;}
     public void pulse(){
-        if(!publishing()){
-            return;
-        }
-        long now=System.nanoTime();var motds=store.list("motd");var broadcasts=store.list("broadcast");
-        if(motds.size()==0&&changedMotd){plugin.getServer().getNetwork().setName(initialMotd);changedMotd=false;}
-        if(now>=nextMotd&&motds.size()>0){
-            plugin.getServer().getNetwork().setName(motds.get(Math.floorMod(motdIndex++,motds.size())).getAsJsonObject().get("text").getAsString());
+        if(!publishing())return;
+        long now=System.nanoTime();int motds=store.count("motd"),broadcasts=store.count("broadcast");
+        if(motds==0&&changedMotd){plugin.getServer().getNetwork().setName(initialMotd);changedMotd=false;}
+        if(now>=nextMotd&&motds>0){
+            plugin.getServer().getNetwork().setName(store.textAt("motd",Math.floorMod(motdIndex++,motds)));
             changedMotd=true;nextMotd=now+interval("motd",10);
         }
-        if(now>=nextBroadcast&&broadcasts.size()>0&&!plugin.getServer().getOnlinePlayers().isEmpty()){
-            String text=broadcasts.get(Math.floorMod(broadcastIndex++,broadcasts.size())).getAsJsonObject().get("text").getAsString();
+        if(now>=nextBroadcast&&broadcasts>0&&!plugin.getServer().getOnlinePlayers().isEmpty()){
+            String text=store.textAt("broadcast",Math.floorMod(broadcastIndex++,broadcasts));
             for(Player player:plugin.getServer().getOnlinePlayers().values())Main.flash(player,text,0,-1f,null);
             nextBroadcast=now+interval("broadcast",25);
         }

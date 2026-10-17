@@ -15,7 +15,12 @@ public final class Channel<T> {
     }
     public Optional<T> winner(long now){
         entries.values().removeIf(e->e.expires<=now);
-        return entries.entrySet().stream().sorted(Comparator.<Map.Entry<String,Entry<T>>>comparingInt(e->e.getValue().priority).reversed().thenComparing(Map.Entry::getKey)).map(e->e.getValue().value).findFirst();
+        String bestKey=null;Entry<T> best=null;
+        for(var e:entries.entrySet()){
+            Entry<T> v=e.getValue();
+            if(best==null||v.priority>best.priority||(v.priority==best.priority&&e.getKey().compareTo(bestKey)<0)){best=v;bestKey=e.getKey();}
+        }
+        return Optional.ofNullable(best).map(Entry::value);
     }
     public void remove(String source){entries.remove(source);}
     public boolean empty(){return entries.isEmpty();}
