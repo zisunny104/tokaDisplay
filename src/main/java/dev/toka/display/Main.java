@@ -39,11 +39,13 @@ public final class Main extends PluginBase implements Listener {
     /** The texts that the plugin shows, shared with the announcements. */
     Messages messages(){return messages;}
     public static String listAnnouncements(String kind){return service().announcements.list(kind);}
+    // TODO: Writes on the calling thread. Move to a callback form (result or error delivered on the main thread) in the next API version.
     public static void replaceAnnouncements(String json)throws Exception{service().announcements.replace(json);}
     public static String announcementsSnapshot(){return service().announcements.snapshot();}
     public static boolean verifyAnnouncements(String json){return service().announcements.verify(json);}
     public static void setAnnouncementsEnabled(boolean enabled){service().announcements.setEnabled(enabled);}
     public static boolean ownsAnnouncements(){return ready()&&instance.announcements.publishing();}
+    // TODO: Writes on the calling thread. Move to a callback form (result or error delivered on the main thread) in the next API version.
     public static int changeAnnouncement(String kind,String action,int id,String text)throws Exception{return service().announcements.change(kind,action,id,text);}
     private static final class State {
         final Layout layout;final Channel<Sidebar> sidebars;
