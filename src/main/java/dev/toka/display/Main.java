@@ -195,7 +195,7 @@ public final class Main extends PluginBase implements Listener {
                         if(!frame.text().equals(state.shownText)){state.boss.setText(frame.text());state.shownText=frame.text();}
                         if(frame.bar().fill()!=state.shownFill){state.boss.setLength(frame.bar().fill());state.shownFill=frame.bar().fill();}
                     }
-                    if(now-state.reshownAt>10_000_000_000L){if(state.reshownAt!=0)state.boss.reshow();state.reshownAt=now;}
+                    if(now-state.reshownAt>5_000_000_000L){if(state.reshownAt!=0)state.boss.reshow();state.reshownAt=now;}
                     // The color is sent when it changes and now and then again, because the game forgets it when the bar is shown again
                     if(frame.bar().color()!=state.shownColor||now-state.colorAt>2_000_000_000L){sendColor(player,state.boss,frame.bar().color());state.shownColor=frame.bar().color();state.colorAt=now;}
                 }
