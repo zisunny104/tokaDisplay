@@ -4,7 +4,9 @@ import cn.nukkit.Player;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.EventHandler;
+import cn.nukkit.event.player.PlayerLocallyInitializedEvent;
 import cn.nukkit.event.player.PlayerQuitEvent;
+import cn.nukkit.event.player.PlayerRespawnEvent;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.utils.DummyBossBar;
@@ -46,7 +48,7 @@ public final class Main extends PluginBase implements Listener {
     private static final class State {
         final Layout layout;final Channel<Sidebar> sidebars;
         Long bossId;DummyBossBar boss;Scoreboard board;Sidebar shown;
-        String shownText;float shownFill=-1;BarColor shownColor;long colorAt;
+        String shownText;float shownFill=-1;BarColor shownColor;long colorAt,reshownAt;
         State(int limit,Layout.Settings settings){layout=new Layout(settings);sidebars=new Channel<>(limit);}
     }
     public void onEnable(){
@@ -91,7 +93,7 @@ public final class Main extends PluginBase implements Listener {
     private String colorNames(){
         java.util.TreeSet<String> names=new java.util.TreeSet<>(aliases.keySet());
         for(BarColor c:BarColor.values())names.add(c.name().toLowerCase(Locale.ROOT));
-        return String.join("、",names);
+        return String.join(", ",names);
     }
     private BarColor color(String name){
         try{return BarColor.parse(name,aliases,settings.defaultColor());}
@@ -143,8 +145,8 @@ public final class Main extends PluginBase implements Listener {
         return state!=null&&state.layout.unpin(id);
     }
     /**
-     * The first way to use the boss bar, kept so that the plugins that call it keep working: the base source sets the
-     * base information, any other source becomes a pinned message that goes away after the time to live.
+     * The older boss bar entry point: the base source sets the base information, any other source becomes a pinned
+     * message that goes away after the time to live.
      */
     public static void bossBar(Player player,String source,String text,float progress,int priority,int ttlTicks){
         Main main=service();Objects.requireNonNull(player);Objects.requireNonNull(text);
@@ -172,13 +174,17 @@ public final class Main extends PluginBase implements Listener {
         player.dataPacket(packet);
     }
     private void render(){
-        announcements.pulse();
+        // An announcement failure must not stop the boss bars of every player
+        try{announcements.pulse();}catch(RuntimeException|LinkageError error){getLogger().warning(messages.text("log.announceFailed",error.getClass().getSimpleName()));}
         long now=System.nanoTime();
+        boolean bossEnabled=getConfig().getBoolean("bossbar.enabled",true),sidebarEnabled=getConfig().getBoolean("sidebar.enabled",true);
         for(var entry:new ArrayList<>(players.entrySet())){
             Player player=entry.getKey();State state=entry.getValue();
             if(!player.isOnline()){clear(player,state);players.remove(player);continue;}
+            // The client drops what it gets before it has finished joining, and nothing would send it again
+            if(!player.spawned||!player.locallyInitialized)continue;
             try {
-                boolean show=getConfig().getBoolean("bossbar.enabled",true)&&!state.layout.isEmpty(now);
+                boolean show=bossEnabled&&!state.layout.isEmpty(now);
                 if(!show){if(state.bossId!=null)player.removeBossBar(state.bossId);state.bossId=null;state.boss=null;state.shownText=null;}
                 else {
                     Layout.Frame frame=state.layout.frame(now);
@@ -189,11 +195,12 @@ public final class Main extends PluginBase implements Listener {
                         if(!frame.text().equals(state.shownText)){state.boss.setText(frame.text());state.shownText=frame.text();}
                         if(frame.bar().fill()!=state.shownFill){state.boss.setLength(frame.bar().fill());state.shownFill=frame.bar().fill();}
                     }
+                    if(now-state.reshownAt>10_000_000_000L){if(state.reshownAt!=0)state.boss.reshow();state.reshownAt=now;}
                     // The color is sent when it changes and now and then again, because the game forgets it when the bar is shown again
                     if(frame.bar().color()!=state.shownColor||now-state.colorAt>2_000_000_000L){sendColor(player,state.boss,frame.bar().color());state.shownColor=frame.bar().color();state.colorAt=now;}
                 }
                 Sidebar sidebar=state.sidebars.winner(now).orElse(null);
-                if(!getConfig().getBoolean("sidebar.enabled",true))sidebar=null;
+                if(!sidebarEnabled)sidebar=null;
                 if(!Objects.equals(sidebar,state.shown)){
                     if(sidebar==null){if(state.board!=null)state.board.hideFor(player);state.board=null;state.shown=null;}
                     else {
@@ -210,8 +217,19 @@ public final class Main extends PluginBase implements Listener {
         }
     }
     private void clear(Player player,State state){try{if(state.bossId!=null)player.removeBossBar(state.bossId);}catch(RuntimeException|LinkageError ignored){}try{if(state.board!=null)state.board.hideFor(player);}catch(RuntimeException|LinkageError ignored){}}
+    /** Forgets what was sent, so that the next render sends the bar and the board again. */
+    private void resync(Player player){
+        State state=players.get(player);
+        if(state==null||!player.isOnline())return;
+        clear(player,state);
+        state.bossId=null;state.boss=null;state.shownText=null;state.shownColor=null;state.reshownAt=0;
+        state.board=null;state.shown=null;
+    }
+    private void resyncLater(Player player){getServer().getScheduler().scheduleDelayedTask(this,()->resync(player),10);}
+    @EventHandler public void initialized(PlayerLocallyInitializedEvent event){resyncLater(event.getPlayer());}
+    @EventHandler public void respawn(PlayerRespawnEvent event){resyncLater(event.getPlayer());}
     @EventHandler public void quit(PlayerQuitEvent event){State state=players.remove(event.getPlayer());if(state!=null)clear(event.getPlayer(),state);}
-    public void onDisable(){if(announcements!=null)try{announcements.close();}catch(Exception error){getLogger().warning(messages.text("log.storageCloseFailed"));}instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
+    public void onDisable(){if(announcements!=null)try{announcements.close();}catch(Exception error){getLogger().warning(messages.text("log.storageCloseFailed"));}if(instance==this)instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
     /**
      * The pinned messages and the messages sent once of a player, in the order they are shown, as a JSON array of
      * {position, kind, id, priority, seconds, text}. The base information is not listed.
@@ -257,7 +275,7 @@ public final class Main extends PluginBase implements Listener {
             case "testbar"->{
                 if(!(sender instanceof Player self)){sender.sendMessage(messages.text("err.playerOnly"));return true;}
                 String color=args.length>=2?args[1]:null;float fill=50f;
-                try{if(args.length>=3)fill=Float.parseFloat(args[2]);}catch(NumberFormatException error){sender.sendMessage(messages.text("err.fillRange"));return true;}
+                try{if(args.length>=3)fill=Float.parseFloat(args[2]);if(!Float.isFinite(fill))throw new NumberFormatException();}catch(NumberFormatException error){sender.sendMessage(messages.text("err.fillRange"));return true;}
                 pin(self,"display:testbar",messages.text("msg.display.testbar.text",color==null?messages.text("status.defaultColor"):color,(int)fill),10,99,fill,color);
                 sender.sendMessage(messages.text("msg.display.testbar.started"));
             }
