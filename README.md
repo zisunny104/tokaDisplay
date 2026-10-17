@@ -19,7 +19,7 @@ Nukkit 共用資訊顯示服務，Java 21，版本 0.2.1。最終讓 zero 的顯
 
 ## 使用
 
-將 tokaDisplay-0.2.6.jar 與 zero-1.7.18.jar 放入 plugins，移走舊版 zero JAR，完整重啟。zero 使用可選整合，不用額外安裝 ScoreboardAPI。缺少 Display 時 zero 暫用舊顯示，作為移除舊實作前的相容措施；Display 已啟用但渲染失敗時不建立競爭顯示，也不停止傳送／保護等業務。
+將 tokaDisplay-0.2.7.jar 與 zero-1.7.18.jar 放入 plugins，移走舊版 zero JAR，完整重啟。zero 使用可選整合，不用額外安裝 ScoreboardAPI。缺少 Display 時 zero 暫用舊顯示，作為移除舊實作前的相容措施；Display 已啟用但渲染失敗時不建立競爭顯示，也不停止傳送／保護等業務。
 
 不要使用 reload。此版本尚未在正式 VPS 或真實玩家畫面驗收，不會自動更新正式服。
 
@@ -81,3 +81,6 @@ JDK 21、Maven，先將測試核心安裝為 cn.nukkit:Nukkit:1.0-SNAPSHOT。執
 
 驗證紀錄（2026-10-16）：4 項仲裁測試通過；tests/smoke.py 使用獨立世界、停用資料庫，確認有／無 Display 都可啟動 zero 基本模組。這不是實際玩家畫面驗收。
 
+## 多語系
+
+所有顯示文字（指令回應、用法、`/display help`、後台 log）都在 `lang/zh-TW.yml`，由內嵌的 tokaI18n 讀取；config.yml 的 `language` 決定語言（目前只有 `zh-TW`）。伺服器擁有者可把同名檔放進 `plugins/tokaDisplay/lang/` 覆蓋個別文字。血條前綴 `flash-prefix`、`pinned-prefix` 仍在 config.yml。詳見 [docs/I18N.md](docs/I18N.md)。

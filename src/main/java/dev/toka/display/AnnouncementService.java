@@ -60,15 +60,15 @@ public final class AnnouncementService implements AutoCloseable {
         if(args.length==0)return false;
         String kind=args[0];if(!Set.of("motd","broadcast").contains(kind))return false;
         String permission="tokaDisplay."+kind+".manage";
-        if(!sender.hasPermission(permission)){sender.sendMessage("沒有此項管理權限");return true;}
+        if(!sender.hasPermission(permission)){sender.sendMessage(plugin.messages().text("err.noManagePermission"));return true;}
         try{
             if(args.length<2)throw new IllegalArgumentException();
             if(args[1].equals("list")){sender.sendMessage(list(kind));return true;}
             int offset=args[1].equals("add")?2:3;
             int id=args[1].equals("add")?-1:Integer.parseInt(args[2]);
             String text=String.join(" ",Arrays.copyOfRange(args,Math.min(offset,args.length),args.length));
-            sender.sendMessage("已儲存 "+kind+" #"+change(kind,args[1],id,text));
-        }catch(Exception e){sender.sendMessage("操作未完成（"+e.getClass().getSimpleName()+"）：/display motd|broadcast list|add <文字>|set <ID> <文字>|remove <ID>");}
+            sender.sendMessage(plugin.messages().text("msg.announce.saved",kind,change(kind,args[1],id,text)));
+        }catch(Exception e){sender.sendMessage(plugin.messages().text("err.announceFailed",e.getClass().getSimpleName())+plugin.messages().text("cmd.display.announce.usage"));}
         return true;
     }
     public void close()throws Exception{if(changedMotd)plugin.getServer().getNetwork().setName(initialMotd);store.close();}

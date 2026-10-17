@@ -1,0 +1,93 @@
+# tokaDisplay 繁體中文語系檔（zh-TW）
+# 規則：${0}、${1} 是依序傳入的參數，每個參數只替換一次；§ 是顏色碼。
+# 顏色慣例：一般文字 §b、數字／名稱 §a、警告 §e、成功 §a、錯誤 §c、次要說明 §7、標題 §6。
+# 後台 log 不加方括號標籤。指令名稱、權限節點、config key 不翻譯。
+# 伺服器擁有者可在 plugins/tokaDisplay/lang/zh-TW.yml 覆蓋個別文字，沒寫到的 key 仍用本檔。
+
+# ---- 指令說明與用法（cmd.*） ----
+# 用法列在錯誤提示與 /display 預設回應中使用，沒有參數。
+cmd:
+  display:
+    usage: "§7/display list [玩家] | unpin <玩家或*> <訊息id或編號> | clear <玩家或*> | testbar [顏色] [填充度] | motd|broadcast ... | help"
+    list:
+      usage: "§7用法：/display list [玩家]"
+    unpin:
+      usage: "§7用法：/display unpin <玩家或*> <訊息id或編號>"
+    clear:
+      usage: "§7用法：/display clear <玩家或*>"
+    testbar:
+      usage: "§7用法：/display testbar <顏色> [填充度]"
+    announce:
+      usage: "§7/display motd|broadcast list|add <文字>|set <ID> <文字>|remove <ID>"
+
+# ---- /display help 的多行說明（help.*）：第一行是標題 ----
+help:
+  display:
+    - "§6§ltokaDisplay 說明"
+    - "§e/display §7- §b顯示服務狀態與用法"
+    - "§e/display help §7- §b顯示這份說明"
+    - "§e/display list [玩家] §7- §b列出固定與單次訊息（不指定玩家就列出全部）"
+    - "§e/display unpin <玩家或*> <訊息id或編號> §7- §b移除指定訊息，* 代表所有玩家"
+    - "§e/display clear <玩家或*> §7- §b清除固定與單次訊息，基本資訊不受影響"
+    - "§e/display testbar <顏色> [填充度] §7- §b在自己的血條顯示 10 秒測試（填充度 0 到 100）"
+    - "§e/display motd list §7- §b列出所有 MOTD"
+    - "§e/display motd add <文字> §7- §b新增 MOTD"
+    - "§e/display motd set <ID> <文字> §7- §b修改指定 MOTD"
+    - "§e/display motd remove <ID> §7- §b刪除指定 MOTD"
+    - "§e/display broadcast list|add|set|remove ... §7- §b廣播的用法與 motd 相同"
+
+# ---- 玩家與管理員看到的訊息（msg.*） ----
+msg:
+  display:
+    # ${0} = 目前顯示中的玩家數量
+    status: "§btokaDisplay：就緒；顯示中的玩家 §a${0}"
+    list:
+      # ${0} = 玩家名稱、${1} = 編號、${2} = 種類（status.pinned／status.once）、${3} = 訊息 id、
+      # ${4} = 優先權、${5} = 剩餘時間（status.forever／status.remaining）、${6} = 訊息內容（最多 30 字）
+      row: "§a${0} §7#§a${1} §b${2} id=§a${3} §b優先權=§a${4} ${5} §7${6}"
+      # ${0} = 訊息總數
+      total: "§b共 §a${0} §b則訊息（基本資訊那一行不列出）"
+    # ${0} = 被移除訊息的玩家數量、${1} = 使用者輸入的訊息 id 或編號
+    unpinned: "§a已從 ${0} 位玩家移除訊息 ${1}"
+    # ${0} = 被清除的玩家數量
+    cleared: "§a已清除 ${0} 位玩家的固定與單次訊息，基本資訊不受影響"
+    testbar:
+      # 顯示在血條上的文字。${0} = 顏色（未指定時為 status.defaultColor）、${1} = 填充度（整數）
+      text: "§e血條測試：${0} ${1}%"
+      # 回覆給指令使用者。後面接用法
+      started: "§a已用 10 秒顯示測試血條，用法：/display testbar <顏色> [填充度]"
+  announce:
+    # ${0} = motd 或 broadcast、${1} = 該筆的 ID
+    saved: "§a已儲存 ${0} #${1}"
+
+# ---- 錯誤與拒絕（err.*） ----
+err:
+  # ${0} = 玩家名稱（使用者輸入）
+  playerNotFound: "§c找不到玩家 ${0}（需要完整名稱，且要在線上）"
+  playerOnly: "§c只能在遊戲內使用"
+  fillRange: "§c填充度要是 0 到 100 的數字"
+  noManagePermission: "§c沒有此項管理權限"
+  # ${0} = 例外類別名稱，後面另外顯示 cmd.display.announce.usage
+  announceFailed: "§c操作未完成（${0}）："
+
+# ---- 後台文字（log.*）：不加方括號標籤 ----
+log:
+  # ${0} = MOTD 數量
+  motdLoaded: "§b載入 MOTD 共 §a${0} §b個"
+  # ${0} = 廣播數量
+  broadcastLoaded: "§b載入廣播共 §a${0} §b個"
+  badDefaultColor: "§edefault-color 不是可用的顏色，改用白色"
+  # ${0} = 不認得的顏色名稱
+  badBarColor: "§e不認得的血條顏色「${0}」，改用預設顏色；可用的顏色與別名請看 config.yml"
+  # ${0} = 例外類別名稱
+  playerPaused: "§e玩家顯示暫停：${0}"
+  storageCloseFailed: "§e公告儲存關閉失敗"
+
+# ---- 狀態字（status.*） ----
+status:
+  defaultColor: "預設顏色"
+  pinned: "固定"
+  once: "單次"
+  forever: "§b永久"
+  # ${0} = 剩餘秒數
+  remaining: "§b剩 §a${0} §b秒"

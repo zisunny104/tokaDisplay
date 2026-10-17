@@ -1,13 +1,14 @@
 name: tokaDisplay
 main: dev.toka.display.Main
-version: "0.2.6"
+version: "0.2.7"
 api: ["1.0.4"]
 author: zisunny104
 load: POSTWORLD
-description: 共用 BossBar 與側邊記分板顯示服務
+description: 共用血條（BossBar）與側邊記分板顯示服務，並提供 MOTD 與廣播公告
 commands:
   display:
-    description: 查詢顯示服務狀態
+    description: 查詢顯示服務狀態；管理員可查看、移除、清除訊息，並管理 MOTD 與廣播
+    usage: "/display [help|list|unpin|clear|testbar|motd|broadcast]"
     permission: tokaDisplay.use
 permissions:
   tokaDisplay.admin:

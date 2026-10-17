@@ -9,6 +9,7 @@ import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.utils.DummyBossBar;
 import cn.nukkit.scoreboard.Scoreboard;
+import dev.toka.i18n.Messages;
 import java.util.*;
 
 /**
@@ -32,6 +33,9 @@ public final class Main extends PluginBase implements Listener {
     private Map<String,String> aliases=Map.of();
     private boolean warnedColor;
     private AnnouncementService announcements;
+    private Messages messages;
+    /** The texts that the plugin shows, shared with the announcements. */
+    Messages messages(){return messages;}
     public static String listAnnouncements(String kind){return service().announcements.list(kind);}
     public static void replaceAnnouncements(String json)throws Exception{service().announcements.replace(json);}
     public static String announcementsSnapshot(){return service().announcements.snapshot();}
@@ -47,17 +51,18 @@ public final class Main extends PluginBase implements Listener {
     }
     public void onEnable(){
         saveDefaultConfig();
-        try{announcements=new AnnouncementService(this);}catch(Exception error){throw new IllegalStateException("公告儲存無法開啟，請保留原始資料",error);}
+        messages=new Messages(getClass().getClassLoader(),getDataFolder().toPath(),getConfig().getString("language","zh-TW"),line->getLogger().warning(line));
+        try{announcements=new AnnouncementService(this);}catch(Exception error){throw new IllegalStateException("Cannot open the announcement storage, keep the original data",error);}
         int[] counts=announcements.counts();
-        getLogger().info("§b載入 MOTD 共 §a"+counts[0]+" §b個");
-        getLogger().info("§b載入廣播共 §a"+counts[1]+" §b個");
+        getLogger().info(messages.text("log.motdLoaded",counts[0]));
+        getLogger().info(messages.text("log.broadcastLoaded",counts[1]));
         limit=Math.max(1,Math.min(128,getConfig().getInt("max-sources",32)));
         aliases=new HashMap<>();
         var section=getConfig().getSection("colors");
         for(String key:section.getKeys(false))aliases.put(key.toLowerCase(Locale.ROOT),String.valueOf(section.get(key)));
         BarColor fallback=BarColor.WHITE;
         try{fallback=BarColor.parse(getConfig().getString("default-color","white"),aliases,BarColor.WHITE);}
-        catch(IllegalArgumentException error){getLogger().warning("default-color 不是可用的顏色，改用白色");}
+        catch(IllegalArgumentException error){getLogger().warning(messages.text("log.badDefaultColor"));}
         settings=new Layout.Settings(
                 Math.max(1,Math.min(3600,getConfig().getInt("messages.flash-seconds",15))),
                 Math.max(1,Math.min(16,getConfig().getInt("messages.max-flash-lines",4))),
@@ -86,7 +91,7 @@ public final class Main extends PluginBase implements Listener {
     private BarColor color(String name){
         try{return BarColor.parse(name,aliases,settings.defaultColor());}
         catch(IllegalArgumentException error){
-            if(!warnedColor){warnedColor=true;getLogger().warning("不認得的血條顏色「"+name+"」，改用預設顏色；可用的顏色與別名請看 config.yml");}
+            if(!warnedColor){warnedColor=true;getLogger().warning(messages.text("log.badBarColor",name));}
             return settings.defaultColor();
         }
     }
@@ -196,12 +201,12 @@ public final class Main extends PluginBase implements Listener {
                     }
                 }
                 if(state.layout.isEmpty(now)&&state.sidebars.empty()){clear(player,state);players.remove(player);}
-            }catch(RuntimeException|LinkageError error){clear(player,state);players.remove(player);getLogger().warning("玩家顯示暫停："+error.getClass().getSimpleName());}
+            }catch(RuntimeException|LinkageError error){clear(player,state);players.remove(player);getLogger().warning(messages.text("log.playerPaused",error.getClass().getSimpleName()));}
         }
     }
     private void clear(Player player,State state){try{if(state.bossId!=null)player.removeBossBar(state.bossId);}catch(RuntimeException|LinkageError ignored){}try{if(state.board!=null)state.board.hideFor(player);}catch(RuntimeException|LinkageError ignored){}}
     @EventHandler public void quit(PlayerQuitEvent event){State state=players.remove(event.getPlayer());if(state!=null)clear(event.getPlayer(),state);}
-    public void onDisable(){if(announcements!=null)try{announcements.close();}catch(Exception error){getLogger().warning("公告儲存關閉失敗");}instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
+    public void onDisable(){if(announcements!=null)try{announcements.close();}catch(Exception error){getLogger().warning(messages.text("log.storageCloseFailed"));}instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
     /**
      * The pinned messages and the messages sent once of a player, in the order they are shown, as a JSON array of
      * {position, kind, id, priority, seconds, text}. The base information is not listed.
@@ -236,7 +241,7 @@ public final class Main extends PluginBase implements Listener {
     private List<Player> targets(CommandSender sender,String name){
         if("*".equals(name))return new ArrayList<>(players.keySet());
         Player player=getServer().getPlayer(name);
-        if(player==null){sender.sendMessage("找不到玩家 "+name+"（需要完整名稱，且要在線上）");return List.of();}
+        if(player==null){sender.sendMessage(messages.text("err.playerNotFound",name));return List.of();}
         return List.of(player);
     }
     public boolean onCommand(CommandSender sender,Command command,String label,String[] args){
@@ -245,11 +250,11 @@ public final class Main extends PluginBase implements Listener {
         String sub=args.length==0?"":args[0].toLowerCase(Locale.ROOT);
         switch(sub){
             case "testbar"->{
-                if(!(sender instanceof Player self)){sender.sendMessage("只能在遊戲內使用");return true;}
+                if(!(sender instanceof Player self)){sender.sendMessage(messages.text("err.playerOnly"));return true;}
                 String color=args.length>=2?args[1]:null;float fill=50f;
-                try{if(args.length>=3)fill=Float.parseFloat(args[2]);}catch(NumberFormatException error){sender.sendMessage("填充度要是 0 到 100 的數字");return true;}
-                pin(self,"display:testbar","§e血條測試："+(color==null?"預設顏色":color)+" "+(int)fill+"%",10,99,fill,color);
-                sender.sendMessage("已用 10 秒顯示測試血條，用法：/display testbar <顏色> [填充度]");
+                try{if(args.length>=3)fill=Float.parseFloat(args[2]);}catch(NumberFormatException error){sender.sendMessage(messages.text("err.fillRange"));return true;}
+                pin(self,"display:testbar",messages.text("msg.display.testbar.text",color==null?messages.text("status.defaultColor"):color,(int)fill),10,99,fill,color);
+                sender.sendMessage(messages.text("msg.display.testbar.started"));
             }
             case "list"->{
                 List<Player> list=args.length>=2?targets(sender,args[1]):new ArrayList<>(players.keySet());
@@ -257,24 +262,27 @@ public final class Main extends PluginBase implements Listener {
                 for(Player player:list){
                     for(var row:com.google.gson.JsonParser.parseString(listMessages(player)).getAsJsonArray()){
                         var entry=row.getAsJsonObject();total++;
-                        String text=entry.get("text").getAsString().replace('\n',' ');if(text.length()>30)text=text.substring(0,30)+"…";
+                        String text=entry.get("text").getAsString().replace('\n',' ');if(text.length()>30)text=text.substring(0,30)+"\u2026";
                         long seconds=entry.get("seconds").getAsLong();
-                        sender.sendMessage(player.getName()+" #"+entry.get("position").getAsInt()+" "+(entry.get("kind").getAsString().equals("pinned")?"固定":"單次")+" id="+entry.get("id").getAsString()+" 優先權="+entry.get("priority").getAsInt()+" "+(seconds<0?"永久":"剩 "+seconds+" 秒")+" "+text);
+                        String kind=messages.text(entry.get("kind").getAsString().equals("pinned")?"status.pinned":"status.once");
+                        String left=seconds<0?messages.text("status.forever"):messages.text("status.remaining",seconds);
+                        sender.sendMessage(messages.text("msg.display.list.row",player.getName(),entry.get("position").getAsInt(),kind,entry.get("id").getAsString(),entry.get("priority").getAsInt(),left,text));
                     }
                 }
-                sender.sendMessage("共 "+total+" 則訊息（基本資訊那一行不列出）");
+                sender.sendMessage(messages.text("msg.display.list.total",total));
             }
             case "unpin"->{
-                if(args.length!=3){sender.sendMessage("用法：/display unpin <玩家或*> <訊息id或編號>");return true;}
+                if(args.length!=3){sender.sendMessage(messages.text("cmd.display.unpin.usage"));return true;}
                 int removed=0;for(Player player:targets(sender,args[1]))if(removeMessage(player,args[2]))removed++;
-                sender.sendMessage("已從 "+removed+" 位玩家移除訊息 "+args[2]);
+                sender.sendMessage(messages.text("msg.display.unpinned",removed,args[2]));
             }
             case "clear"->{
-                if(args.length!=2){sender.sendMessage("用法：/display clear <玩家或*>");return true;}
+                if(args.length!=2){sender.sendMessage(messages.text("cmd.display.clear.usage"));return true;}
                 int cleared=0;for(Player player:targets(sender,args[1])){clearMessages(player);cleared++;}
-                sender.sendMessage("已清除 "+cleared+" 位玩家的固定與單次訊息，基本資訊不受影響");
+                sender.sendMessage(messages.text("msg.display.cleared",cleared));
             }
-            default->sender.sendMessage("tokaDisplay：就緒；顯示中的玩家 "+players.size()+"\n/display list [玩家] | unpin <玩家或*> <訊息id或編號> | clear <玩家或*>");
+            case "help"->sender.sendMessage(String.join("\n",messages.lines("help.display")));
+            default->sender.sendMessage(messages.text("msg.display.status",players.size())+"\n"+messages.text("cmd.display.usage"));
         }
         return true;
     }
