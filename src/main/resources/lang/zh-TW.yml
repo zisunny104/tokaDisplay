@@ -79,6 +79,9 @@ log:
   announceFailed: "§e公告發布失敗：${0}"
   # ${0} = 例外類別名稱
   playerPaused: "§e玩家顯示暫停：${0}"
+  # ${0} = 例外類別名稱
+  announceSaveFailed: "§e公告儲存失敗：${0}"
+  storageDrainTimeout: "§e公告儲存逾時，仍有未完成的寫入"
   storageCloseFailed: "§e公告儲存關閉失敗"
 
 # ---- 狀態字（status.*） ----

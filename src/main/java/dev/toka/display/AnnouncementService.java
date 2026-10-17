@@ -4,6 +4,7 @@ import cn.nukkit.Player;
 import cn.nukkit.command.CommandSender;
 import dev.toka.storage.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 
 /** Publishes the MOTD and the broadcasts. It stays quiet while zero's old schedules are still on, so that nothing is sent twice. */
@@ -15,6 +16,8 @@ public final class AnnouncementService implements AutoCloseable {
     private int motdIndex,broadcastIndex;
     private boolean changedMotd;
     private java.lang.reflect.Method moduleCheck;
+    /** Saving and reading back the storage happens here, one task at a time, never on the server thread. */
+    private final ExecutorService writer=Executors.newSingleThreadExecutor(task->{Thread thread=new Thread(task,"tokaDisplay-storage");thread.setDaemon(true);return thread;});
     public AnnouncementService(Main plugin)throws Exception{
         this.plugin=plugin;initialMotd=plugin.getServer().getNetwork().getName();
         var backend=Backend.valueOf(plugin.getConfig().getString("storage.backend","sqlite").toUpperCase(Locale.ROOT));
@@ -49,13 +52,15 @@ public final class AnnouncementService implements AutoCloseable {
         long now=System.nanoTime();int motds=store.count("motd"),broadcasts=store.count("broadcast");
         if(motds==0&&changedMotd){plugin.getServer().getNetwork().setName(initialMotd);changedMotd=false;}
         if(now>=nextMotd&&motds>0){
-            plugin.getServer().getNetwork().setName(store.textAt("motd",Math.floorMod(motdIndex++,motds)));
-            changedMotd=true;nextMotd=now+interval("motd",10);
+            String text=store.textAt("motd",motdIndex++);
+            if(text!=null){plugin.getServer().getNetwork().setName(text);changedMotd=true;nextMotd=now+interval("motd",10);}
         }
         if(now>=nextBroadcast&&broadcasts>0&&!plugin.getServer().getOnlinePlayers().isEmpty()){
-            String text=store.textAt("broadcast",Math.floorMod(broadcastIndex++,broadcasts));
-            for(Player player:plugin.getServer().getOnlinePlayers().values())Main.flash(player,text,0,-1f,null);
-            nextBroadcast=now+interval("broadcast",25);
+            String text=store.textAt("broadcast",broadcastIndex++);
+            if(text!=null){
+                for(Player player:plugin.getServer().getOnlinePlayers().values())Main.flash(player,text,0,-1f,null);
+                nextBroadcast=now+interval("broadcast",25);
+            }
         }
     }
     public boolean command(CommandSender sender,String[] args){
@@ -69,9 +74,26 @@ public final class AnnouncementService implements AutoCloseable {
             int offset=args[1].equals("add")?2:3;
             int id=args[1].equals("add")?-1:Integer.parseInt(args[2]);
             String text=String.join(" ",Arrays.copyOfRange(args,Math.min(offset,args.length),args.length));
-            sender.sendMessage(plugin.messages().text("msg.announce.saved",kind,change(kind,args[1],id,text)));
-        }catch(Exception e){sender.sendMessage(plugin.messages().text("err.announceFailed",e.getClass().getSimpleName())+plugin.messages().text("cmd.display.announce.usage"));}
+            String action=args[1];
+            writer.execute(()->{
+                try{int saved=change(kind,action,id,text);reply(sender,plugin.messages().text("msg.announce.saved",kind,saved));}
+                catch(Exception e){fail(sender,e);}
+            });
+        }catch(Exception e){fail(sender,e);}
         return true;
     }
-    public void close()throws Exception{if(changedMotd)plugin.getServer().getNetwork().setName(initialMotd);store.close();}
+    private void fail(CommandSender sender,Exception e){
+        plugin.getLogger().warning(plugin.messages().text("log.announceSaveFailed",e.getClass().getSimpleName()));
+        reply(sender,plugin.messages().text("err.announceFailed",e.getClass().getSimpleName())+plugin.messages().text("cmd.display.announce.usage"));
+    }
+    /** Nukkit is only used on the server thread; the server may already be stopping when the storage thread ends. */
+    private void reply(CommandSender sender,String line){
+        try{plugin.getServer().getScheduler().scheduleTask(plugin,()->sender.sendMessage(line));}catch(RuntimeException ignored){}
+    }
+    /** Waits for the saves that are queued, so that none is lost. */
+    public void close()throws Exception{
+        writer.shutdown();
+        if(!writer.awaitTermination(10,TimeUnit.SECONDS))plugin.getLogger().warning(plugin.messages().text("log.storageDrainTimeout"));
+        if(changedMotd)plugin.getServer().getNetwork().setName(initialMotd);store.close();
+    }
 }

@@ -75,4 +75,4 @@
 - **MOTD 與廣播沒有動靜？** 確認 `announcements.enabled` 為 `true`。
 - **某則固定訊息一直留著？** 用 `/display list` 找到後以 `/display unpin` 移除。
 
-目前版本 0.2.9
+目前版本 0.2.10

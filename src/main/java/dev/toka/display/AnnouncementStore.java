@@ -5,10 +5,10 @@ import dev.toka.storage.*;
 import java.io.IOException;
 import java.util.*;
 
-/** One saved document; no active snapshot changes before persistence succeeds. */
+/** One saved document; no active snapshot changes before persistence succeeds. Writes may run on the storage thread, so they are synchronized and the snapshot is swapped whole. */
 public final class AnnouncementStore implements AutoCloseable {
     private final DocumentStore store;
-    private JsonObject state;
+    private volatile JsonObject state;
     public AnnouncementStore(StoreConfig config) throws IOException {
         store=DocumentStore.open(config);
         try{state=store.load("announcements").orElse(null);if(state!=null)validate(state);}
@@ -27,8 +27,12 @@ public final class AnnouncementStore implements AutoCloseable {
     public JsonArray list(String kind){kind(kind);return state==null?new JsonArray():state.getAsJsonArray(kind).deepCopy();}
     public boolean initialized(){return state!=null;}
     public int count(String kind){kind(kind);return state==null?0:state.getAsJsonArray(kind).size();}
-    /** @return the text at a position of the list, without copying the list */
-    public String textAt(String kind,int index){kind(kind);return state.getAsJsonArray(kind).get(index).getAsJsonObject().get("text").getAsString();}
+    /** @return the text at a position of the list (wrapped around), without copying the list; null when the list is empty */
+    public String textAt(String kind,int index){
+        kind(kind);JsonObject current=state;if(current==null)return null;
+        JsonArray list=current.getAsJsonArray(kind);
+        return list.isEmpty()?null:list.get(Math.floorMod(index,list.size())).getAsJsonObject().get("text").getAsString();
+    }
     private static JsonObject content(JsonObject input){
         validate(input);JsonObject out=new JsonObject();out.addProperty("schema",1);
         for(String kind:List.of("motd","broadcast")){
@@ -40,7 +44,7 @@ public final class AnnouncementStore implements AutoCloseable {
     public String snapshotJson(){if(state!=null)return content(state).toString();return "{\"schema\":1,\"motd\":[],\"broadcast\":[]}";}
     public boolean verify(String json){return JsonParser.parseString(snapshotJson()).equals(content(JsonParser.parseString(json).getAsJsonObject()));}
     /** General snapshot initialization: accept an empty destination or identical current content only. */
-    public void replaceIfEmptyOrEqual(String json)throws IOException{
+    public synchronized void replaceIfEmptyOrEqual(String json)throws IOException{
         JsonObject incoming=content(JsonParser.parseString(json).getAsJsonObject());
         if(state!=null&&(!state.getAsJsonArray("motd").isEmpty()||!state.getAsJsonArray("broadcast").isEmpty())){
             if(!content(state).equals(incoming))throw new IllegalStateException("Destination differs; refusing overwrite");return;
@@ -50,7 +54,7 @@ public final class AnnouncementStore implements AutoCloseable {
         save(next);
     }
     private void save(JsonObject next)throws IOException{validate(next);store.save("announcements",next);JsonObject actual=store.load("announcements").orElseThrow(()->new IOException("Missing announcement readback"));if(!actual.equals(next))throw new IOException("Announcement readback mismatch");state=next;}
-    public int change(String kind,String action,int id,String text)throws IOException{
+    public synchronized int change(String kind,String action,int id,String text)throws IOException{
         kind(kind);JsonObject next;
         if(state==null){next=new JsonObject();next.addProperty("schema",1);next.add("motd",new JsonArray());next.add("broadcast",new JsonArray());}else next=state.deepCopy();
         var list=next.getAsJsonArray(kind);
