@@ -90,8 +90,8 @@ public final class Main extends PluginBase implements Listener {
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
         getServer().getScheduler().scheduleRepeatingTask(this,this::compose,Math.max(1,getConfig().getInt("sidebar.refresh-ticks",20)));
     }
-    /** Used only when an older config.yml has no sidebar.layout. */
-    private static final List<String> DEFAULT_LAYOUT=List.of("region","position","bearing","-","money","coin","-","item","-","score","tps");
+    /** Same as the default in config.yml; it only protects old configs that have no sidebar.layout. */
+    private static final List<String> DEFAULT_LAYOUT=List.of("region","position","bearing","-","money","coin","-","item","-","score","tps","ping","area");
     /**
      * Registers a sidebar section: one line that sidebar.layout in config.yml places. Registering an id again replaces it.
      *
