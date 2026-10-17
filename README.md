@@ -9,6 +9,15 @@
 - **側邊記分板**：同時有多個內容時，依優先序顯示最重要的一個。
 - **MOTD 與廣播**：伺服器名稱輪播與定時廣播，由管理員用指令增修，不必改檔。
 
+畫面由上到下是這樣：
+
+```
+        [線上]12  21:30  玩家名稱     第一行：基本資訊（置中，只有擁有者能改）
+  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓     血條（顏色、填充度可變）
+  = 傳送冷卻 12 秒                      固定訊息（= 開頭，直到被移除）
+  - 歡迎回來                            單次訊息（- 開頭，時間到消失）
+```
+
 （圖：畫面頂部血條與其下方訊息區，標出第一行基本資訊、固定訊息、單次訊息）
 
 ## 管理員怎麼用
@@ -29,7 +38,7 @@
 
 | key | 預設 | 說明 |
 | --- | --- | --- |
-| `announcements.enabled` | `true` | 是否發布 MOTD 與廣播；zero 舊功能仍在運作時會暫停以免重複 |
+| `announcements.enabled` | `true` | 是否發布 MOTD 與廣播 |
 | `announcements.motd-seconds` | `10` | MOTD 輪播間隔（秒） |
 | `announcements.broadcast-seconds` | `25` | 廣播間隔（秒） |
 | `bossbar.enabled`、`sidebar.enabled` | `true` | 關閉後對應畫面不會出現 |
@@ -63,7 +72,7 @@
 ## 常見問題
 
 - **畫面沒有血條或記分板？** 確認 `bossbar.enabled`、`sidebar.enabled` 為 `true`。
-- **MOTD 與廣播沒有動靜？** 確認 `announcements.enabled` 為 `true`，且 zero 的舊功能已停用。
+- **MOTD 與廣播沒有動靜？** 確認 `announcements.enabled` 為 `true`。
 - **某則固定訊息一直留著？** 用 `/display list` 找到後以 `/display unpin` 移除。
 
 目前版本 0.2.8
