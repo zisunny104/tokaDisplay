@@ -33,8 +33,10 @@ public final class Main extends PluginBase implements Listener {
     private boolean warnedColor;
     private AnnouncementService announcements;
     public static String listAnnouncements(String kind){return service().announcements.list(kind);}
-    public static void importLegacyAnnouncements(String json)throws Exception{service().announcements.importLegacy(json);}
-    public static void enableAnnouncementsAfterRestart(){service().announcements.requestEnable();}
+    public static void replaceAnnouncements(String json)throws Exception{service().announcements.replace(json);}
+    public static String announcementsSnapshot(){return service().announcements.snapshot();}
+    public static boolean verifyAnnouncements(String json){return service().announcements.verify(json);}
+    public static void setAnnouncementsEnabled(boolean enabled){service().announcements.setEnabled(enabled);}
     public static boolean ownsAnnouncements(){return ready()&&instance.announcements.publishing();}
     public static int changeAnnouncement(String kind,String action,int id,String text)throws Exception{return service().announcements.change(kind,action,id,text);}
     private static final class State {

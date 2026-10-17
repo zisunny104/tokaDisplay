@@ -26,14 +26,27 @@ public final class AnnouncementStore implements AutoCloseable {
     }
     public JsonArray list(String kind){kind(kind);return state==null?new JsonArray():state.getAsJsonArray(kind).deepCopy();}
     public boolean initialized(){return state!=null;}
-    public void importLegacy(String json)throws IOException{
-        JsonObject incoming=JsonParser.parseString(json).getAsJsonObject();validate(incoming);
-        if(state!=null){if(!state.equals(incoming)&&(!state.has("legacySource")||!state.get("legacySource").equals(incoming)))throw new IllegalStateException("Destination differs; refusing overwrite");return;}
-        JsonObject next=incoming.deepCopy();next.add("legacySource",incoming.deepCopy());
-        for(String kind:List.of("motd","broadcast")){long id=0;for(var row:incoming.getAsJsonArray(kind))id=Math.max(id,(long)row.getAsJsonObject().get("id").getAsInt()+1);next.addProperty(kind+"NextId",id);}
+    private static JsonObject content(JsonObject input){
+        validate(input);JsonObject out=new JsonObject();out.addProperty("schema",1);
+        for(String kind:List.of("motd","broadcast")){
+            TreeMap<Integer,JsonObject> rows=new TreeMap<>();
+            for(var value:input.getAsJsonArray(kind)){var row=value.getAsJsonObject();JsonObject clean=new JsonObject();clean.addProperty("id",row.get("id").getAsInt());clean.addProperty("text",row.get("text").getAsString());rows.put(clean.get("id").getAsInt(),clean);}
+            JsonArray list=new JsonArray();rows.values().forEach(list::add);out.add(kind,list);
+        }return out;
+    }
+    public String snapshotJson(){if(state!=null)return content(state).toString();return "{\"schema\":1,\"motd\":[],\"broadcast\":[]}";}
+    public boolean verify(String json){return JsonParser.parseString(snapshotJson()).equals(content(JsonParser.parseString(json).getAsJsonObject()));}
+    /** General snapshot initialization: accept an empty destination or identical current content only. */
+    public void replaceIfEmptyOrEqual(String json)throws IOException{
+        JsonObject incoming=content(JsonParser.parseString(json).getAsJsonObject());
+        if(state!=null&&(!state.getAsJsonArray("motd").isEmpty()||!state.getAsJsonArray("broadcast").isEmpty())){
+            if(!content(state).equals(incoming))throw new IllegalStateException("Destination differs; refusing overwrite");return;
+        }
+        JsonObject next=incoming.deepCopy();
+        for(String kind:List.of("motd","broadcast")){long id=state!=null&&state.has(kind+"NextId")?state.get(kind+"NextId").getAsLong():0;for(var row:incoming.getAsJsonArray(kind))id=Math.max(id,(long)row.getAsJsonObject().get("id").getAsInt()+1);next.addProperty(kind+"NextId",id);}
         save(next);
     }
-    private void save(JsonObject next)throws IOException{validate(next);store.save("announcements",next);state=next;}
+    private void save(JsonObject next)throws IOException{validate(next);store.save("announcements",next);JsonObject actual=store.load("announcements").orElseThrow(()->new IOException("Missing announcement readback"));if(!actual.equals(next))throw new IOException("Announcement readback mismatch");state=next;}
     public int change(String kind,String action,int id,String text)throws IOException{
         kind(kind);JsonObject next;
         if(state==null){next=new JsonObject();next.addProperty("schema",1);next.add("motd",new JsonArray());next.add("broadcast",new JsonArray());}else next=state.deepCopy();

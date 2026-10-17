@@ -15,11 +15,11 @@ Nukkit 共用資訊顯示服務，Java 21，版本 0.2.1。最終讓 zero 的顯
 - `/display` 查狀態，權限 tokaDisplay.admin，預設 OP。
 - zero 1.7.16 的相容 adapter 提交既有 BossBar／側欄內容；它暫時仍負責組合遊戲資料與原有冷卻。
 
-本版只保存短期顯示狀態與 YAML 設定，沒有需搬遷的正式持久資料；不建立空的玩家資料庫。未來廣播／MOTD 的正式清單採 tokaStorage 的 SQLite／JSON／YAML、預設 SQLite；玩家共用偏好由 Profiles 管理，避免重複來源。
+廣播／MOTD 正式清單採 tokaStorage 0.1.3 的 SQLite／JSON／YAML，預設 SQLite；設定為 `storage.backend`。短期顯示狀態不持久化。玩家共用偏好由 Profiles 管理，避免重複來源。
 
 ## 使用
 
-將 tokaDisplay-0.2.1.jar 與 zero-1.7.18.jar 放入 plugins，移走舊版 zero JAR，完整重啟。zero 使用可選整合，不用額外安裝 ScoreboardAPI。缺少 Display 時 zero 暫用舊顯示，作為移除舊實作前的相容措施；Display 已啟用但渲染失敗時不建立競爭顯示，也不停止傳送／保護等業務。
+將 tokaDisplay-0.2.6.jar 與 zero-1.7.18.jar 放入 plugins，移走舊版 zero JAR，完整重啟。zero 使用可選整合，不用額外安裝 ScoreboardAPI。缺少 Display 時 zero 暫用舊顯示，作為移除舊實作前的相容措施；Display 已啟用但渲染失敗時不建立競爭顯示，也不停止傳送／保護等業務。
 
 不要使用 reload。此版本尚未在正式 VPS 或真實玩家畫面驗收，不會自動更新正式服。
 
@@ -48,11 +48,32 @@ Main.removeSource("regions:info");
 
 Main 的完整名稱為 dev.toka.display.Main。進度 0～100；ttlTicks 1～72000，以單調時鐘計算顯示有效期，不作遊戲冷卻時鐘。每位玩家／管道來源數預設上限 32。側欄最多 15 行，行字串須唯一。插件自行計算業務數據，只傳入顯示快照，不將餘額、權限與區域規則交給 Display。
 
-## 後續接管
+## 公告管理與資料 API
 
-廣播與伺服器列表 MOTD 的資料、排程及管理入口尚未搬遷；進出訊息、ActionBar、Title、顯示偏好整合亦未完成。舊 zero Motd 已確認是伺服器列表名稱輪替，Broadcast 是送到 BossBar 的通知，不等於一般聊天。搬遷必須先匯入原資料，再關閉舊 writer／排程，不能讓兩套同時發布。
+`/display motd|broadcast list|add <文字>|set <ID> <文字>|remove <ID>` 管理公告，權限為 `tokaDisplay.motd.manage`／`tokaDisplay.broadcast.manage`，預設 OP，可由權限插件配置。MOTD 是伺服器列表名稱輪播；broadcast 使用訊息區通知，不是一般聊天。`announcements.enabled` 控制發布，預設 true；偵測到 zero 的舊 MOTD／廣播排程仍運行時會暫停發布，避免重複。
 
-唯一拆分計畫：[zero 主文件](https://github.com/zisunny104/zero/blob/master/docs/ARCHITECTURE.md)。
+舊系統的備份、交接、核對及關閉舊功能由 **zero** 負責，Display 不提供交接指令，不讀寫 zero 的資料庫或設定。既有資料中的 `legacySource` 欄位仍可讀取，但不再用來判斷新快照相同，也不建立 `migration-backups`。
+
+一般公開 API（主執行緒）：
+
+```java
+Main.replaceAnnouncements(String json); // throws Exception；空目的地或目前內容相同才接受
+String json = Main.announcementsSnapshot();
+boolean same = Main.verifyAnnouncements(String json);
+Main.setAnnouncementsEnabled(boolean enabled); // 僅保存本插件 announcements.enabled
+String rows = Main.listAnnouncements("motd");
+int id = Main.changeAnnouncement("broadcast", "add", -1, "公告");
+```
+
+快照格式：
+
+```json
+{"schema":1,"motd":[{"id":4,"text":"伺服器標題"}],"broadcast":[{"id":9,"text":"公告內容"}]}
+```
+
+清單順序以 ID 排序比對，ID 及內容保留；重複 ID、空白文字或不同的非空目的地會拒絕。寫入後讀回驗證，不會以以前的來源快照覆蓋使用者後續修改。API 不負責舊資料備份，也不會自動關閉其他插件。
+
+進出訊息、ActionBar、Title、顯示偏好整合仍待後續工作；唯一拆分計畫：[zero 主文件](https://github.com/zisunny104/zero/blob/master/docs/ARCHITECTURE.md)。
 
 ## 建置
 

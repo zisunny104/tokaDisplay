@@ -4,7 +4,7 @@ import cn.nukkit.Player;
 import cn.nukkit.command.CommandSender;
 import dev.toka.storage.*;
 import java.util.*;
-import java.nio.file.*;
+
 
 /** Publishes the MOTD and the broadcasts. It stays quiet while zero's old schedules are still on, so that nothing is sent twice. */
 public final class AnnouncementService implements AutoCloseable {
@@ -27,19 +27,18 @@ public final class AnnouncementService implements AutoCloseable {
     }
     /** @return the number of MOTD and of broadcasts that are loaded */
     public int[] counts(){return new int[]{store.list("motd").size(),store.list("broadcast").size()};}
-    public boolean publishing(){return store.initialized()&&!legacyActive();}
+    public boolean publishing(){return plugin.getConfig().getBoolean("announcements.enabled",true)&&store.initialized()&&!legacyActive();}
     public String list(String kind){return store.list(kind).toString();}
     public int change(String kind,String action,int id,String text)throws Exception{return store.change(kind,action,id,text.replace("\\n","\n"));}
-    public void importLegacy(String payload)throws Exception{
-        var directory=plugin.getDataFolder().toPath().resolve("migration-backups");Files.createDirectories(directory);
-        String hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        var backup=directory.resolve(hash+".json");
-        if(!Files.exists(backup))Files.writeString(backup,payload,StandardOpenOption.CREATE_NEW);
-        else if(!Files.readString(backup).equals(payload))throw new IllegalStateException("Backup mismatch");
-        store.importLegacy(payload);
+    public void replace(String payload)throws Exception{store.replaceIfEmptyOrEqual(payload);}
+    public String snapshot(){return store.snapshotJson();}
+    public boolean verify(String payload){return store.verify(payload);}
+    public void setEnabled(boolean enabled){
+        boolean previous=plugin.getConfig().getBoolean("announcements.enabled",true);
+        plugin.getConfig().set("announcements.enabled",enabled);
+        try{plugin.saveConfig();}catch(RuntimeException error){plugin.getConfig().set("announcements.enabled",previous);throw error;}
+        if(!enabled&&changedMotd){plugin.getServer().getNetwork().setName(initialMotd);changedMotd=false;}
     }
-    /** Kept for zero 1.7.18 and older, which call it after the import. The announcements need no switch any more. */
-    public void requestEnable(){}
     private long interval(String kind,int fallback){return Math.max(1,Math.min(86400,plugin.getConfig().getInt("announcements."+kind+"-seconds",fallback)))*1_000_000_000L;}
     public void pulse(){
         if(!publishing()){
