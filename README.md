@@ -83,4 +83,4 @@ JDK 21、Maven，先將測試核心安裝為 cn.nukkit:Nukkit:1.0-SNAPSHOT。執
 
 ## 多語系
 
-所有顯示文字（指令回應、用法、`/display help`、後台 log）都在 `lang/zh-TW.yml`，由內嵌的 tokaI18n 讀取；config.yml 的 `language` 決定語言（目前只有 `zh-TW`）。伺服器擁有者可把同名檔放進 `plugins/tokaDisplay/lang/` 覆蓋個別文字。血條前綴 `flash-prefix`、`pinned-prefix` 仍在 config.yml。詳見 [docs/I18N.md](docs/I18N.md)。
+所有顯示文字（指令回應、用法、`/display help`、後台 log）都在 `lang/zh-TW.yml`，由內嵌的 tokaI18n 讀取；config.yml 的 `language` 決定語言（目前只有 `zh-TW`）。伺服器擁有者可把同名檔放進 `plugins/tokaDisplay/lang/` 覆蓋個別文字。血條前綴 `flash-prefix`、`pinned-prefix` 仍在 config.yml。共用的多語系原則見[拆分主文件](https://github.com/zisunny104/zero/blob/master/docs/ARCHITECTURE.md)。
