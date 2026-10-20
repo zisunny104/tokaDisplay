@@ -27,7 +27,7 @@ sidebar:
   # 組合並更新側欄的間隔（tick）。
   refresh-ticks: 20
   # 側欄由上而下的內容：項目是區段 id，或 - 代表一行空白。內建區段：position、bearing、item、tps、ping；
-  # region、money、coin、score、area 由其他插件註冊。沒有註冊或這一輪沒內容的區段會略過，多餘的空白行自動收斂，最多 15 行。
+  # region、money、coin、area 由其他插件註冊。沒有註冊或這一輪沒內容的區段會略過，多餘的空白行自動收斂，最多 15 行。
   layout:
     - region
     - position
@@ -38,7 +38,6 @@ sidebar:
     - "-"
     - item
     - "-"
-    - score
     - tps
     - ping
     - area
