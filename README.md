@@ -1,12 +1,12 @@
 # tokaDisplay
 
-共用的畫面顯示服務：統一管理玩家頂部的血條、血條下方的訊息區與側邊記分板，另外提供 MOTD 輪播與廣播公告。
+畫面顯示服務：管理血條 BossBar、固定與單次訊息、側邊記分板、MOTD 輪播與廣播公告。
 
 ## 主要功能
 
-- **血條**：顯示在畫面頂部，可用 pink、blue、red、green、yellow、purple、white 七種顏色，也能設定別名（例如 `cooldown` 代表紅色），之後換色只要改設定。
-- **訊息區**：血條下方的文字。第一行是基本資訊（狀態列），其下是固定訊息與單次訊息，多個插件的內容會依優先序疊在一起，不會互相覆蓋。
-- **側邊記分板**：同時有多個內容時，依優先序顯示最重要的一個。
+- **血條**：顯示在畫面頂部，支援七種顏色與自訂顏色別名。
+- **訊息區**：血條下方的文字。第一行是基本資訊狀態列，其下是固定訊息與單次訊息，多個插件的內容會依優先序疊在一起，不會互相覆蓋。
+- **側邊記分板**：依版面設定組合各插件的區段；插件直接送出的記分板優先顯示，多份直接送出的內容再依優先序選取。
 - **MOTD 與廣播**：伺服器名稱輪播與定時廣播，由管理員用指令增修，不必改檔。
 
 畫面由上到下是這樣：
@@ -17,8 +17,6 @@
   = 傳送冷卻 12 秒                      固定訊息（= 開頭，直到被移除）
   - 歡迎回來                            單次訊息（- 開頭，時間到消失）
 ```
-
-（圖：畫面頂部血條與其下方訊息區，標出第一行基本資訊、固定訊息、單次訊息）
 
 ## 管理指令
 
@@ -32,45 +30,54 @@
 | `/display motd` | `list`、`add <文字>`、`set <ID> <文字>`、`remove <ID>` | 管理 MOTD | `tokaDisplay.motd.manage` |
 | `/display broadcast` | 用法同 `motd` | 管理廣播 | `tokaDisplay.broadcast.manage` |
 
-以上權限預設都是 OP。玩家沒有需要輸入的指令。
+以上管理權限預設都是 OP。MOTD 與廣播分別檢查各自的管理權限，其他管理操作檢查 `tokaDisplay.admin`。玩家沒有需要輸入的指令。
 
-## 設定（`config.yml`，變更後需重新啟動）
+## 設定 config.yml
+
+變更後需重新啟動。
 
 | key | 預設 | 說明 |
 | --- | --- | --- |
-| `announcements.enabled` | `true` | 是否發布 MOTD 與廣播 |
+| `language` | `zh-TW` | 訊息語言 |
+| `update-ticks` | `5` | 畫面更新間隔 tick |
+| `max-sources` | `32` | 每位玩家、每種顯示管道的來源上限 |
+| `storage.backend` | `sqlite` | 公告儲存格式：`sqlite`、`json`、`yaml`；切換前需搬遷資料 |
+| `announcements.enabled` | `true` | 是否發布 MOTD 與廣播；zero 舊公告模組仍啟用時會暫停發布 |
 | `announcements.motd-seconds` | `10` | MOTD 輪播間隔（秒） |
 | `announcements.broadcast-seconds` | `25` | 廣播間隔（秒） |
 | `bossbar.enabled`、`sidebar.enabled` | `true` | 關閉後對應畫面不會出現 |
 | `sidebar.title` | 空白標題 | 側欄標題，可用色碼 |
-| `sidebar.refresh-ticks` | `20` | 組合並更新側欄的間隔（tick），內容沒變不會重送 |
-| `sidebar.layout` | 見下 | 側欄由上而下的內容，項目是區段 id 或 `-`（空白行） |
+| `sidebar.refresh-ticks` | `20` | 組合並更新側欄的間隔 tick，內容沒變不會重送 |
+| `sidebar.layout` | 下列版面範例 | 側欄由上而下的內容，項目是區段 id 或 `-`（空白行） |
 
 ### 側欄版面
 
-側欄由 tokaDisplay 組合，其他插件只提供「區段」（一行文字）。`sidebar.layout` 預設：
+側欄由 tokaDisplay 組合，各插件註冊一行文字作為區段。`sidebar.layout` 預設：
 
 ```yaml
 sidebar:
   layout: [region, position, bearing, "-", money, coin, "-", item, "-", score, tps, ping, area]
 ```
 
-內建區段有 `position`（座標）、`bearing`（方位）、`item`（手持物品）、`tps`、`ping`；`region`、`money`、`coin`、`score`、`area` 由其他插件註冊。沒有註冊或當下沒內容的區段會略過，連續或頭尾的空白行自動收斂，最多 15 行，超過的略過。插件用 `sidebar` 直接送出記分板時，優先於這個版面。
+內建區段有 座標 `position`、方位 `bearing`、手持物品 `item`、`tps`、`ping`；`region`、`money`、`coin`、`score`、`area` 由其他插件註冊。沒有註冊或當下沒內容的區段會略過，連續或頭尾的空白行自動收斂，最多 15 行，超過的略過。插件用 `sidebar` 直接送出記分板時，優先於這個版面。
 
-（圖：側邊記分板的預設版面）
+### 血條與訊息設定
+
+| key | 預設 | 說明 |
+| --- | --- | --- |
 | `default-color` | `white` | 沒指定顏色時的血條顏色 |
 | `colors` | cooldown: red、ready: green、notice: yellow | 顏色別名 |
 | `messages.flash-seconds` | `15` | 單次訊息預設停留秒數 |
-| `messages.max-flash-lines`、`max-pinned` | `4`、`8` | 單次訊息同時行數／每人固定訊息上限 |
+| `messages.max-flash-lines`、`messages.max-pinned` | `4`、`8` | 單次訊息同時行數／每人固定訊息上限 |
 | `messages.pinned-max-seconds` | `0` | 固定訊息最長停留秒數，`0` 不限；擔心訊息被忘記關掉可設如 `21600` |
-| `messages.flash-prefix`、`pinned-prefix` | `§f- `、`§f= ` | 單次／固定訊息的開頭，可用色碼 |
+| `messages.flash-prefix`、`messages.pinned-prefix` | `§f- `、`§f= ` | 單次／固定訊息的開頭，可用色碼 |
 | `messages.trim-blank-lines` | `true` | 清掉空白行，血條下方不留空位 |
 | `messages.bar-gap-lines` | `1` | 第一行下方有內容時，為血條預留的行數 |
 | `messages.status-min-width` | `60` | 第一行置中用的最小寬度 |
 
 ## 串接
 
-請將 tokaDisplay 列為 softdepend，確認已啟用（`Main.ready()`）後，再呼叫 `dev.toka.display.Main` 的靜態方法（需在主執行緒）。
+請將 tokaDisplay 列為選用依賴 softdepend，以 `Main.ready()` 確認服務已啟用，再於主執行緒呼叫 `dev.toka.display.Main` 的靜態方法。
 
 | 方法 | 參數 | 用途 |
 | --- | --- | --- |
@@ -90,7 +97,5 @@ sidebar:
 ## 疑難排解
 
 - **畫面沒有血條或記分板？** 確認 `bossbar.enabled`、`sidebar.enabled` 為 `true`。
-- **MOTD 與廣播沒有動靜？** 確認 `announcements.enabled` 為 `true`。
+- **MOTD 與廣播沒有動靜？** 確認 `announcements.enabled` 為 `true`，且 zero 的舊 `motd`／`broadcast` 模組已停用；舊模組仍啟用或無法確認其狀態時，本插件會暫停發布。
 - **某則固定訊息一直留著？** 用 `/display list` 找到後以 `/display unpin` 移除。
-
-目前版本 0.3.0
