@@ -74,3 +74,15 @@ messages:
   # 沒有指定秒數的固定訊息最久留多久（秒），預設 0 代表不限制。擔心有人忘記關掉固定訊息時，可以設成例如 21600（6 小時）。
   # 管理員也可以用 /display list 查看、/display unpin 移除、/display clear 清除。
   pinned-max-seconds: 0
+
+# 玩家名稱標籤（聊天、加入離開訊息使用）。${name} 是玩家名稱，${mode} 是遊戲模式顏色，
+# 其他 ${id} 是其他插件登錄的片段（例如 title、affiliation、prefix）；沒有插件提供就是空白。
+nametag:
+  format: "${prefix}§r${affiliation}§r${mode}[${title}${mode}${name}${mode}]"
+  mode-colors:
+    survival: "§a"
+    creative: "§b"
+    adventure: "§6"
+    spectator: "§e"
+  # 離線的人，或不在上面列表的模式使用。
+  fallback-mode-color: "§7"

@@ -9,6 +9,8 @@ import cn.nukkit.event.player.PlayerQuitEvent;
 import cn.nukkit.event.player.PlayerRespawnEvent;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.data.CommandParameter;
+import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.utils.DummyBossBar;
 import cn.nukkit.scoreboard.Scoreboard;
 import dev.toka.i18n.Messages;
@@ -38,6 +40,12 @@ public final class Main extends PluginBase implements Listener {
     private record Section(String owner,Function<Player,String> line) {}
     private final Map<String,Section> sections=new LinkedHashMap<>();
     private final Set<String> failedSections=new HashSet<>();
+    private record TagPart(String owner,java.util.function.BiFunction<UUID,Player,String> render) {}
+    private final Map<String,TagPart> tagParts=new java.util.concurrent.ConcurrentHashMap<>();
+    private final Set<String> failedTagParts=java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private NameTag nameTag=new NameTag("${name}");
+    private final Map<Integer,String> modeColors=new HashMap<>();
+    private String fallbackModeColor="§7";
     private boolean warnedOverflow;
     private List<String> sidebarLayout=List.of();
     private String sidebarTitle="";
@@ -63,6 +71,19 @@ public final class Main extends PluginBase implements Listener {
     public void onEnable(){
         saveDefaultConfig();
         messages=new Messages(getClass().getClassLoader(),getDataFolder().toPath(),getConfig().getString("language","zh-TW"),line->getLogger().warning(line));
+        suggest("display",
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"help"})},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"list"})},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"list"}), CommandParameter.newType("玩家", true, CommandParamType.TARGET)},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"unpin"}), CommandParameter.newType("玩家", CommandParamType.TARGET), CommandParameter.newType("訊息ID或編號", CommandParamType.STRING)},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"unpin"}), CommandParameter.newEnum("玩家", new String[]{"*"}), CommandParameter.newType("訊息ID或編號", CommandParamType.STRING)},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"clear"}), CommandParameter.newType("玩家", CommandParamType.TARGET)},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"clear"}), CommandParameter.newEnum("玩家", new String[]{"*"})},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"testbar"}), CommandParameter.newEnum("顏色", Arrays.stream(BarColor.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).toArray(String[]::new)), CommandParameter.newType("填充度", true, CommandParamType.FLOAT)},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"motd", "broadcast"}), CommandParameter.newEnum("項目", new String[]{"list"})},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"motd", "broadcast"}), CommandParameter.newEnum("項目", new String[]{"add"}), CommandParameter.newType("文字", false, CommandParamType.RAWTEXT)},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"motd", "broadcast"}), CommandParameter.newEnum("項目", new String[]{"set"}), CommandParameter.newType("ID", CommandParamType.INT), CommandParameter.newType("文字", false, CommandParamType.RAWTEXT)},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"motd", "broadcast"}), CommandParameter.newEnum("項目", new String[]{"remove"}), CommandParameter.newType("ID", CommandParamType.INT)});
         try{announcements=new AnnouncementService(this);}catch(Exception error){throw new IllegalStateException("Cannot open the announcement storage, keep the original data",error);}
         int[] counts=announcements.counts();
         getLogger().info(messages.text("log.motdLoaded",counts[0]));
@@ -86,9 +107,22 @@ public final class Main extends PluginBase implements Listener {
         getServer().getPluginManager().registerEvents(this,this);instance=this;
         sidebarTitle=getConfig().getString("sidebar.title","§e                              §r");
         sidebarLayout=getConfig().exists("sidebar.layout")?getConfig().getStringList("sidebar.layout"):DEFAULT_LAYOUT;
+        nameTag=new NameTag(getConfig().getString("nametag.format","${prefix}§r${affiliation}§r${mode}[${title}${mode}${name}${mode}]"));
+        fallbackModeColor=getConfig().getString("nametag.fallback-mode-color","§7");
+        modeColors.put(0,getConfig().getString("nametag.mode-colors.survival","§a"));
+        modeColors.put(1,getConfig().getString("nametag.mode-colors.creative","§b"));
+        modeColors.put(2,getConfig().getString("nametag.mode-colors.adventure","§6"));
+        modeColors.put(3,getConfig().getString("nametag.mode-colors.spectator","§e"));
         registerBuiltins();
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
         getServer().getScheduler().scheduleRepeatingTask(this,this::compose,Math.max(1,getConfig().getInt("sidebar.refresh-ticks",20)));
+    }
+
+    private void suggest(String name, CommandParameter[]... forms) {
+        Command registered = (Command) getCommand(name);
+        if (registered == null) return;
+        registered.getCommandParameters().clear();
+        for (int i = 0; i < forms.length; i++) registered.addCommandParameters("choice" + i, forms[i]);
     }
     /** Same as the default in config.yml; it only protects old configs that have no sidebar.layout. */
     private static final List<String> DEFAULT_LAYOUT=List.of("region","position","bearing","-","money","coin","-","item","-","tps","ping","area");
@@ -107,6 +141,38 @@ public final class Main extends PluginBase implements Listener {
     public static void unregisterSection(String id){service().sections.remove(id);}
     /** Removes every section registered with this owner name; call it when the plugin is disabled. */
     public static void unregisterSections(String owner){Objects.requireNonNull(owner);service().sections.values().removeIf(s->s.owner().equals(owner));}
+    /**
+     * Registers one part of the name tag: the text that replaces <code>${id}</code> in nametag.format of config.yml.
+     * The part gets the player's id and the player when online (null when offline), so a tag can also be built for someone
+     * who has left. A part that throws is skipped and reported once; it never breaks the name tag.
+     *
+     * @param render the text for this player, null or empty for nothing
+     */
+    public static void registerNameTagPart(String owner,String id,java.util.function.BiFunction<UUID,Player,String> render){
+        Main main=service();Objects.requireNonNull(owner);Objects.requireNonNull(render);
+        if(id==null||id.isBlank()||id.length()>64||id.equals("name")||id.equals("mode"))throw new IllegalArgumentException("id");
+        main.tagParts.put(id,new TagPart(owner,render));main.failedTagParts.remove(id);
+    }
+    /** Removes every name tag part registered with this owner name; call it when the plugin is disabled. */
+    public static void unregisterNameTagParts(String owner){Objects.requireNonNull(owner);service().tagParts.values().removeIf(p->p.owner().equals(owner));}
+    /**
+     * The name tag for a player, online or not. Pass the online player when there is one so the game mode colour is right;
+     * for someone offline the fallback colour is used.
+     */
+    public static String nameTag(UUID id,String name,Player online){return service().composeNameTag(id,name,online);}
+    private String composeNameTag(UUID id,String name,Player online){
+        return nameTag.compose(key->{
+            if(key.equals("name"))return name;
+            if(key.equals("mode"))return online==null?fallbackModeColor:modeColors.getOrDefault(online.getGamemode(),fallbackModeColor);
+            TagPart part=tagParts.get(key);
+            if(part==null)return null;
+            try{return part.render().apply(id,online);}
+            catch(RuntimeException|LinkageError error){
+                if(failedTagParts.add(key))getLogger().warning(messages.text("log.tagPartFailed",key));
+                return null;
+            }
+        });
+    }
     private void registerBuiltins(){
         String own=getName();
         registerSection(own,"position",p->messages.text("ui.sidebar.position",(int)p.getX(),(int)p.getY(),(int)p.getZ()));

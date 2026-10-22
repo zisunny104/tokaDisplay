@@ -108,6 +108,8 @@ log:
   storageDrainTimeout: "§e公告儲存逾時，仍有未完成的寫入"
   # ${0} = 區段 id
   sectionFailed: "§e側欄區段 ${0} 發生例外，本輪略過"
+  # ${0} = 名稱標籤片段 id
+  tagPartFailed: "§e名稱標籤片段 ${0} 發生例外，已略過"
   sidebarTooLong: "§e側欄超過 15 行，多的行已略過"
   storageCloseFailed: "§e公告儲存關閉失敗"
 
