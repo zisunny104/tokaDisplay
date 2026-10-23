@@ -7,7 +7,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 
-/** Publishes the MOTD and the broadcasts. It stays quiet while zero's old schedules are still on, so that nothing is sent twice. */
+/** Publishes the MOTD and the broadcasts. */
 public final class AnnouncementService implements AutoCloseable {
     private final Main plugin;
     private final AnnouncementStore store;
@@ -15,7 +15,6 @@ public final class AnnouncementService implements AutoCloseable {
     private long nextMotd,nextBroadcast;
     private int motdIndex,broadcastIndex;
     private boolean changedMotd;
-    private java.lang.reflect.Method moduleCheck;
     /** Saving and reading back the storage happens here, one task at a time, never on the server thread. */
     private final ExecutorService writer=Executors.newSingleThreadExecutor(task->{Thread thread=new Thread(task,"tokaDisplay-storage");thread.setDaemon(true);return thread;});
     public AnnouncementService(Main plugin)throws Exception{
@@ -23,18 +22,9 @@ public final class AnnouncementService implements AutoCloseable {
         var backend=Backend.valueOf(plugin.getConfig().getString("storage.backend","sqlite").toUpperCase(Locale.ROOT));
         store=new AnnouncementStore(new StoreConfig(backend,plugin.getDataFolder().toPath().resolve("storage").resolve(backend.name().toLowerCase(Locale.ROOT)),1));
     }
-    private boolean legacyActive(){
-        var zero=plugin.getServer().getPluginManager().getPlugin("zero");
-        if(zero==null||!zero.isEnabled())return false;
-        try{
-            if(moduleCheck==null||moduleCheck.getDeclaringClass()!=zero.getClass())moduleCheck=zero.getClass().getMethod("isModuleActive",String.class);
-            return (Boolean)moduleCheck.invoke(zero,"motd")||(Boolean)moduleCheck.invoke(zero,"broadcast");
-        }
-        catch(Exception|LinkageError e){return true;}
-    }
     /** @return the number of MOTD and of broadcasts that are loaded */
     public int[] counts(){return new int[]{store.count("motd"),store.count("broadcast")};}
-    public boolean publishing(){return plugin.getConfig().getBoolean("announcements.enabled",true)&&store.initialized()&&!legacyActive();}
+    public boolean publishing(){return plugin.getConfig().getBoolean("announcements.enabled",true)&&store.initialized();}
     /** The text of the entry with this id, or an empty string */
     private String textOf(String kind,int id){
         for(var row:store.list(kind)){var o=row.getAsJsonObject();if(o.get("id").getAsInt()==id)return o.get("text").getAsString();}

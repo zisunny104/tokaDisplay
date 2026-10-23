@@ -42,7 +42,7 @@
 | `update-ticks` | `5` | 畫面更新間隔 tick |
 | `max-sources` | `32` | 每位玩家、每種顯示管道的來源上限 |
 | `storage.backend` | `sqlite` | 公告儲存格式：`sqlite`、`json`、`yaml`；切換前需搬遷資料 |
-| `announcements.enabled` | `true` | 是否發布 MOTD 與廣播；zero 舊公告模組仍啟用時會暫停發布 |
+| `announcements.enabled` | `true` | 是否發布 MOTD 與廣播 |
 | `announcements.motd-seconds` | `10` | MOTD 輪播間隔（秒） |
 | `announcements.broadcast-seconds` | `25` | 廣播間隔（秒） |
 | `bossbar.enabled`、`sidebar.enabled` | `true` | 關閉後對應畫面不會出現 |
@@ -97,5 +97,5 @@ sidebar:
 ## 疑難排解
 
 - **畫面沒有血條或記分板？** 確認 `bossbar.enabled`、`sidebar.enabled` 為 `true`。
-- **MOTD 與廣播沒有動靜？** 確認 `announcements.enabled` 為 `true`，且 zero 的舊 `motd`／`broadcast` 模組已停用；舊模組仍啟用或無法確認其狀態時，本插件會暫停發布。
+- **MOTD 與廣播沒有動靜？** 確認 `announcements.enabled` 為 `true`，並用 `/display broadcast list` 看有沒有內容。
 - **某則固定訊息一直留著？** 用 `/display list` 找到後以 `/display unpin` 移除。
