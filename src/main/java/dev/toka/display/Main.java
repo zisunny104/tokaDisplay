@@ -116,6 +116,7 @@ public final class Main extends PluginBase implements Listener {
         registerBuiltins();
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
         getServer().getScheduler().scheduleRepeatingTask(this,this::compose,Math.max(1,getConfig().getInt("sidebar.refresh-ticks",20)));
+        getServer().getScheduler().scheduleRepeatingTask(this,this::baseline,Math.max(1,getConfig().getInt("baseline.refresh-ticks",20)));
     }
 
     private void suggest(String name, CommandParameter[]... forms) {
@@ -216,6 +217,35 @@ public final class Main extends PluginBase implements Listener {
         if(!instance.getServer().isPrimaryThread())throw new IllegalStateException("Display API requires server thread");
         return instance;
     }
+    /** Whether the base information at the top is made here (online count, time, name tag); false leaves it to whoever sends it. */
+    public static boolean baselineActive(){return ready()&&instance.getConfig().getBoolean("baseline.enabled",true);}
+    private static final String[] CIRCLED={"⓪","①","②","③","④","⑤","⑥","⑦","⑧","⑨"};
+    /** The clock, 24 hours with zero padding, its digits drawn as circled numbers. */
+    private String clock(){
+        String text=java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(getConfig().getString("baseline.time-format","HH:mm")));
+        StringBuilder out=new StringBuilder();
+        for(char c:text.toCharArray())out.append(c>='0'&&c<='9'?CIRCLED[c-'0']:String.valueOf(c));
+        return out.toString();
+    }
+    /** The base information every player sees at the top: how many are online, the time, and who they are. */
+    private void baseline(){
+        if(!baselineActive())return;
+        String format=getConfig().getString("baseline.format"," §5[線上]${online}  §9${time}§r  ${light}${nametag}§r \n                                                            \n");
+        float fill=(float)getConfig().getDouble("baseline.fill",100);
+        String time=clock(),online=String.valueOf(getServer().getOnlinePlayers().size());
+        long life=ticks(Math.max(40,getConfig().getInt("baseline.refresh-ticks",20)*4));
+        for(Player player:new ArrayList<>(getServer().getOnlinePlayers().values())){
+            if(!player.isOnline()||!player.spawned)continue;
+            try{
+                String text=format.replace("${online}",online).replace("${time}",time).replace("${light}",composeLight(player))
+                    .replace("${nametag}",composeNameTag(player.getUniqueId(),player.getName(),player));
+                state(player).layout.base(text,new BarEffect(fill,modeColorOf(player)),life,System.nanoTime());
+            }catch(RuntimeException|LinkageError error){
+                if(failedTagParts.add("baseline"))getLogger().warning(messages.text("log.tagPartFailed","baseline"));
+            }
+        }
+    }
+    private BarColor modeColorOf(Player player){return settings.defaultColor();}
     private State state(Player player){
         Objects.requireNonNull(player);
         return players.computeIfAbsent(player,p->new State(limit,settings));
