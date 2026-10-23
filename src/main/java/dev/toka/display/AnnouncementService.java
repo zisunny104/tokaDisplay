@@ -85,8 +85,7 @@ public final class AnnouncementService implements AutoCloseable {
                     String before=textOf(kind,id);
                     int saved=change(kind,action,id,text);
                     String shown=action.equals("remove")?before:text;
-                    reply(sender,plugin.messages().text("msg.announce."+(action.equals("add")?"added":action.equals("set")?"changed":"removed"),kind,saved,shown.replace("
-"," ")));
+                    reply(sender,plugin.messages().text("msg.announce."+(action.equals("add")?"added":action.equals("set")?"changed":"removed"),kind,saved,shown.replace((char)10,(char)32)));
                 }
                 catch(Exception e){fail(sender,e);}
             });
