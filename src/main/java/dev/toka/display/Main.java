@@ -100,7 +100,7 @@ public final class Main extends PluginBase implements Listener {
                 Math.max(1,Math.min(16,getConfig().getInt("messages.max-flash-lines",4))),
                 Math.max(1,Math.min(32,getConfig().getInt("messages.max-pinned",8))),
                 8192,fallback,Math.max(0,Math.min(2592000,getConfig().getInt("messages.pinned-max-seconds",0)))*Layout.SECOND,
-                getConfig().getString("messages.flash-prefix","§f- "),getConfig().getString("messages.pinned-prefix","§f= "),
+                getConfig().getString("messages.flash-prefix","§8- "),getConfig().getString("messages.pinned-prefix","§8= "),
                 getConfig().getBoolean("messages.trim-blank-lines",true),
                 Math.max(0,Math.min(3,getConfig().getInt("messages.bar-gap-lines",1))),
                 Math.max(0,Math.min(200,getConfig().getInt("messages.status-min-width",60))));
