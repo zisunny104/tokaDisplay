@@ -35,6 +35,11 @@ public final class AnnouncementService implements AutoCloseable {
     /** @return the number of MOTD and of broadcasts that are loaded */
     public int[] counts(){return new int[]{store.count("motd"),store.count("broadcast")};}
     public boolean publishing(){return plugin.getConfig().getBoolean("announcements.enabled",true)&&store.initialized()&&!legacyActive();}
+    /** The text of the entry with this id, or an empty string */
+    private String textOf(String kind,int id){
+        for(var row:store.list(kind)){var o=row.getAsJsonObject();if(o.get("id").getAsInt()==id)return o.get("text").getAsString();}
+        return "";
+    }
     public String list(String kind){return store.list(kind).toString();}
     public int change(String kind,String action,int id,String text)throws Exception{return store.change(kind,action,id,text.replace("\\n","\n"));}
     public void replace(String payload)throws Exception{store.replaceIfEmptyOrEqual(payload);}
@@ -76,7 +81,13 @@ public final class AnnouncementService implements AutoCloseable {
             String text=String.join(" ",Arrays.copyOfRange(args,Math.min(offset,args.length),args.length));
             String action=args[1];
             writer.execute(()->{
-                try{int saved=change(kind,action,id,text);reply(sender,plugin.messages().text("msg.announce.saved",kind,saved));}
+                try{
+                    String before=textOf(kind,id);
+                    int saved=change(kind,action,id,text);
+                    String shown=action.equals("remove")?before:text;
+                    reply(sender,plugin.messages().text("msg.announce."+(action.equals("add")?"added":action.equals("set")?"changed":"removed"),kind,saved,shown.replace("
+"," ")));
+                }
                 catch(Exception e){fail(sender,e);}
             });
         }catch(Exception e){fail(sender,e);}
