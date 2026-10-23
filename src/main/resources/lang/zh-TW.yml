@@ -8,7 +8,7 @@
 # 用法列在錯誤提示與 /display 預設回應中使用，沒有參數。
 cmd:
   display:
-    usage: "§7/display list [玩家] | unpin <玩家或*> <訊息id或編號> | clear <玩家或*> | testbar [顏色] [填充度] | motd|broadcast ... | help"
+    usage: "§7/display reload | list [玩家] | unpin <玩家或*> <訊息id或編號> | clear <玩家或*> | testbar [顏色] [填充度] | motd|broadcast ... | help"
     unpin:
       usage: "§7用法：/display unpin <玩家或*> <訊息id或編號>"
     clear:
@@ -20,17 +20,20 @@ cmd:
 help:
   display:
     - "§6=== §f§ltokaDisplay 說明§r §6==="
-    - "§e/display §7- §b顯示服務狀態與用法"
+    - "§e/display §7- §b管理員在遊戲內開公告視窗，後台顯示狀態與用法"
+    - "§e/display reload §7- §b重讀設定與語言（需要 tokaDisplay.admin）"
     - "§e/display help §7- §b顯示這份說明"
     - "§e/display list [玩家] §7- §b列出固定與單次訊息（不指定玩家就列出全部）"
     - "§e/display unpin <玩家或*> <訊息id或編號> §7- §b移除指定訊息，* 代表所有玩家"
     - "§e/display clear <玩家或*> §7- §b清除固定與單次訊息"
-    - "§e/display testbar <顏色> [填充度] §7- §b在自己的血條顯示 10 秒測試（填充度 0 到 100）"
+    - "§e/display testbar [顏色] [填充度] §7- §b在自己的血條顯示 10 秒測試，顏色可省略（填充度 0 到 100）"
     - "§e/display motd list §7- §b列出所有 MOTD"
     - "§e/display motd add <文字> §7- §b新增 MOTD"
     - "§e/display motd set <ID> <文字> §7- §b修改指定 MOTD"
     - "§e/display motd remove <ID> §7- §b刪除指定 MOTD"
     - "§e/display broadcast list|add|set|remove ... §7- §b廣播的用法與 motd 相同"
+    - "§7motd 是伺服器清單上的標題，輪流更換；broadcast 是頂部訊息區的單次訊息，輪流顯示"
+    - "§7權限：§atokaDisplay.admin §7管理訊息與 reload；§atokaDisplay.motd.manage §7與 §atokaDisplay.broadcast.manage §7管理公告；§atokaDisplay.use §7查看狀態"
 
 # ---- 玩家與管理員看到的訊息（msg.*） ----
 msg:
@@ -47,6 +50,7 @@ msg:
     unpinned: "§a已從 ${0} 位玩家移除訊息 ${1}"
     # ${0} = 被清除的玩家數量
     cleared: "§a已清除 ${0} 位玩家的固定與單次訊息"
+    reloaded: "§a已重新載入設定與語言"
     testbar:
       # 顯示在血條上的文字。${0} = 顏色（未指定時為 status.defaultColor）、${1} = 填充度（整數）
       text: "§e血條測試：${0} ${1}%"
@@ -57,9 +61,46 @@ msg:
     added: "§a已新增 ${0} #${1}：§r${2}"
     changed: "§a已修改 ${0} #${1}：§r${2}"
     removed: "§a已移除 ${0} #${1}：§r${2}"
+    # ${0} = 例外類別名稱
+    failed: "§c操作未完成（${0}）"
 
-# ---- 側邊記分板內建區段（ui.*） ----
+# ---- 側邊記分板內建區段與公告視窗（ui.*） ----
 ui:
+  back: "返回"
+  search: "搜尋"
+  searchLabel: "關鍵字或編號"
+  searchHint: "留空顯示全部"
+  add: "新增"
+  prev: "上一頁"
+  next: "下一頁"
+  # ${0} = 編號、${1} = 內容摘要
+  entry: "§a#${0} §r${1}"
+  kind:
+    motd: "MOTD"
+    broadcast: "廣播"
+  menu:
+    title: "公告管理"
+    # ${0} = MOTD 數、${1} = 廣播數
+    body: "MOTD §a${0}§r 則，廣播 §a${1}§r 則"
+    motd: "MOTD（${0}）"
+    broadcast: "廣播（${0}）"
+  list:
+    # ${0} = 種類、${1} = 頁、${2} = 總頁數
+    title: "${0} ${1}/${2}"
+    # ${0} = 符合數、${1} = 總數
+    body: "共 §a${0}§r 則，點選項目來修改"
+    # ${2} = 搜尋字
+    bodyQuery: "符合 §a${0}§r／§a${1}§r 則，搜尋「${2}」"
+  textLabel: "內容"
+  textHint: "換行請輸入 \\n"
+  edit:
+    title: "${0} #${1}"
+    delete: "刪除這則"
+  delete:
+    title: "確認刪除"
+    body: "要刪除 ${0} #${1} 嗎？"
+    yes: "刪除"
+    no: "取消"
   sidebar:
     # ${0} = X、${1} = Y、${2} = Z
     position: "§3[座標]${0}:${1}:${2}§r"
@@ -91,6 +132,7 @@ err:
   noManagePermission: "§c沒有此項管理權限"
   # ${0} = 例外類別名稱，後面另外顯示 cmd.display.announce.usage
   announceFailed: "§c操作未完成（${0}）："
+  emptyText: "§c內容不能留空"
 
 # ---- 後台文字（log.*）：不加方括號標籤 ----
 log:
@@ -114,6 +156,7 @@ log:
   tagPartFailed: "§e名稱標籤片段 ${0} 發生例外，已略過"
   sidebarTooLong: "§e側欄超過 15 行，多的行已略過"
   storageCloseFailed: "§e公告儲存關閉失敗"
+  storageOpenFailed: "§c無法開啟公告儲存，已保留原資料"
 
 # ---- 狀態字（status.*） ----
 status:

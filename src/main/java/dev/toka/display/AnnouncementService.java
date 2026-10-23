@@ -30,6 +30,8 @@ public final class AnnouncementService implements AutoCloseable {
         for(var row:store.list(kind)){var o=row.getAsJsonObject();if(o.get("id").getAsInt()==id)return o.get("text").getAsString();}
         return "";
     }
+    /** The saved entries for the window; each row has id and text. */
+    com.google.gson.JsonArray rows(String kind){return store.list(kind);}
     public String list(String kind){return store.list(kind).toString();}
     public int change(String kind,String action,int id,String text)throws Exception{return store.change(kind,action,id,text.replace("\\n","\n"));}
     public void replace(String payload)throws Exception{store.replaceIfEmptyOrEqual(payload);}
@@ -71,16 +73,30 @@ public final class AnnouncementService implements AutoCloseable {
             String text=String.join(" ",Arrays.copyOfRange(args,Math.min(offset,args.length),args.length));
             String action=args[1];
             writer.execute(()->{
-                try{
-                    String before=textOf(kind,id);
-                    int saved=change(kind,action,id,text);
-                    String shown=action.equals("remove")?before:text;
-                    reply(sender,plugin.messages().text(action.equals("add")?"msg.announce.added":action.equals("set")?"msg.announce.changed":"msg.announce.removed",kind,saved,shown.replace((char)10,(char)32)));
-                }
+                try{reply(sender,perform(kind,action,id,text));}
                 catch(Exception e){fail(sender,e);}
             });
         }catch(Exception e){fail(sender,e);}
         return true;
+    }
+    /** Saves one change on the storage thread and returns the line that tells what was done. */
+    private String perform(String kind,String action,int id,String text)throws Exception{
+        String before=textOf(kind,id);
+        int saved=change(kind,action,id,text);
+        String shown=action.equals("remove")?before:text;
+        return plugin.messages().text(action.equals("add")?"msg.announce.added":action.equals("set")?"msg.announce.changed":"msg.announce.removed",kind,saved,shown.replace((char)10,(char)32));
+    }
+    /** For the window: the same change as the commands make; the answer comes back on the server thread, the line or the failure. */
+    void submit(String kind,String action,int id,String text,java.util.function.BiConsumer<String,Exception> done){
+        try{
+            writer.execute(()->{
+                String line=null;Exception failure=null;
+                try{line=perform(kind,action,id,text);}
+                catch(Exception e){failure=e;plugin.getLogger().warning(plugin.messages().text("log.announceSaveFailed",e.getClass().getSimpleName()));}
+                String shownLine=line;Exception shownFailure=failure;
+                try{plugin.getServer().getScheduler().scheduleTask(plugin,()->done.accept(shownLine,shownFailure));}catch(RuntimeException ignored){}
+            });
+        }catch(RejectedExecutionException closing){done.accept(null,closing);}
     }
     private void fail(CommandSender sender,Exception e){
         plugin.getLogger().warning(plugin.messages().text("log.announceSaveFailed",e.getClass().getSimpleName()));
@@ -93,7 +109,7 @@ public final class AnnouncementService implements AutoCloseable {
     /** Waits for the saves that are queued, so that none is lost. */
     public void close()throws Exception{
         writer.shutdown();
-        if(!writer.awaitTermination(10,TimeUnit.SECONDS))plugin.getLogger().warning(plugin.messages().text("log.storageDrainTimeout"));
+        if(!writer.awaitTermination(3,TimeUnit.SECONDS))plugin.getLogger().warning(plugin.messages().text("log.storageDrainTimeout"));
         if(changedMotd)plugin.getServer().getNetwork().setName(initialMotd);store.close();
     }
 }

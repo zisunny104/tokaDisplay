@@ -50,6 +50,7 @@ public final class Main extends PluginBase implements Listener {
     private List<String> sidebarLayout=List.of();
     private String sidebarTitle="";
     private AnnouncementService announcements;
+    private AnnouncementMenu menu;
     private Messages messages;
     /** The texts that the plugin shows, shared with the announcements. */
     Messages messages(){return messages;}
@@ -72,7 +73,7 @@ public final class Main extends PluginBase implements Listener {
         saveDefaultConfig();
         messages=new Messages(getClass().getClassLoader(),getDataFolder().toPath(),getConfig().getString("language","zh-TW"),line->getLogger().warning(line));
         suggest("display",
-                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"help"})},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"help", "reload"})},
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"list"})},
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"list"}), CommandParameter.newType("玩家", true, CommandParamType.TARGET)},
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"unpin"}), CommandParameter.newType("玩家", CommandParamType.TARGET), CommandParameter.newType("訊息ID或編號", CommandParamType.STRING)},
@@ -84,10 +85,20 @@ public final class Main extends PluginBase implements Listener {
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"motd", "broadcast"}), CommandParameter.newEnum("項目", new String[]{"add"}), CommandParameter.newType("文字", false, CommandParamType.RAWTEXT)},
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"motd", "broadcast"}), CommandParameter.newEnum("項目", new String[]{"set"}), CommandParameter.newType("ID", CommandParamType.INT), CommandParameter.newType("文字", false, CommandParamType.RAWTEXT)},
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"motd", "broadcast"}), CommandParameter.newEnum("項目", new String[]{"remove"}), CommandParameter.newType("ID", CommandParamType.INT)});
-        try{announcements=new AnnouncementService(this);}catch(Exception error){throw new IllegalStateException("Cannot open the announcement storage, keep the original data",error);}
+        try{announcements=new AnnouncementService(this);}catch(Exception error){throw new IllegalStateException(messages.text("log.storageOpenFailed"),error);}
+        menu=new AnnouncementMenu(this,announcements);
+        getServer().getPluginManager().registerEvents(menu.ui(),this);
         int[] counts=announcements.counts();
         getLogger().info(messages.text("log.motdLoaded",counts[0]));
         getLogger().info(messages.text("log.broadcastLoaded",counts[1]));
+        getServer().getPluginManager().registerEvents(this,this);instance=this;
+        loadSettings();
+        registerBuiltins();
+        startTasks();
+    }
+
+    /** Reads everything that is derived from config.yml; new players get the new layout settings, players already shown keep theirs until their state is rebuilt. */
+    private void loadSettings(){
         limit=Math.max(1,Math.min(128,getConfig().getInt("max-sources",32)));
         aliases=new HashMap<>();
         var section=getConfig().getSection("colors");
@@ -104,7 +115,6 @@ public final class Main extends PluginBase implements Listener {
                 getConfig().getBoolean("messages.trim-blank-lines",true),
                 Math.max(0,Math.min(3,getConfig().getInt("messages.bar-gap-lines",1))),
                 Math.max(0,Math.min(200,getConfig().getInt("messages.status-min-width",60))));
-        getServer().getPluginManager().registerEvents(this,this);instance=this;
         sidebarTitle=getConfig().getString("sidebar.title","§e                              §r");
         sidebarLayout=getConfig().exists("sidebar.layout")?getConfig().getStringList("sidebar.layout"):DEFAULT_LAYOUT;
         nameTag=new NameTag(getConfig().getString("nametag.format","${prefix}§r${affiliation}§r${mode}[${title}${mode}${name}${mode}]"));
@@ -113,7 +123,9 @@ public final class Main extends PluginBase implements Listener {
         modeColors.put(1,getConfig().getString("nametag.mode-colors.creative","§b"));
         modeColors.put(2,getConfig().getString("nametag.mode-colors.adventure","§6"));
         modeColors.put(3,getConfig().getString("nametag.mode-colors.spectator","§e"));
-        registerBuiltins();
+    }
+
+    private void startTasks(){
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
         getServer().getScheduler().scheduleRepeatingTask(this,this::compose,Math.max(1,getConfig().getInt("sidebar.refresh-ticks",20)));
         getServer().getScheduler().scheduleRepeatingTask(this,this::baseline,Math.max(1,getConfig().getInt("baseline.refresh-ticks",20)));
@@ -139,9 +151,9 @@ public final class Main extends PluginBase implements Listener {
         if(id==null||id.isBlank()||id.length()>64||SidebarCompose.SEPARATOR.equals(id))throw new IllegalArgumentException("id");
         main.sections.put(id,new Section(owner,line));main.failedSections.remove(id);
     }
-    public static void unregisterSection(String id){service().sections.remove(id);}
+    public static void unregisterSection(String id){if(ready())service().sections.remove(id);}
     /** Removes every section registered with this owner name; call it when the plugin is disabled. */
-    public static void unregisterSections(String owner){Objects.requireNonNull(owner);service().sections.values().removeIf(s->s.owner().equals(owner));}
+    public static void unregisterSections(String owner){Objects.requireNonNull(owner);if(!ready())return;service().sections.values().removeIf(s->s.owner().equals(owner));}
     /**
      * Registers one part of the name tag: the text that replaces <code>${id}</code> in nametag.format of config.yml.
      * The part gets the player's id and the player when online (null when offline), so a tag can also be built for someone
@@ -155,7 +167,7 @@ public final class Main extends PluginBase implements Listener {
         main.tagParts.put(id,new TagPart(owner,render));main.failedTagParts.remove(id);
     }
     /** Removes every name tag part registered with this owner name; call it when the plugin is disabled. */
-    public static void unregisterNameTagParts(String owner){Objects.requireNonNull(owner);service().tagParts.values().removeIf(p->p.owner().equals(owner));}
+    public static void unregisterNameTagParts(String owner){Objects.requireNonNull(owner);if(!ready())return;service().tagParts.values().removeIf(p->p.owner().equals(owner));}
     /**
      * The name tag for a player, online or not. Pass the online player when there is one so the game mode colour is right;
      * for someone offline the fallback colour is used.
@@ -327,8 +339,8 @@ public final class Main extends PluginBase implements Listener {
         var texts=List.of(lines.clone());if(new HashSet<>(texts).size()!=texts.size()||texts.stream().anyMatch(s->s.length()>2048))throw new IllegalArgumentException("Sidebar lines must be unique and bounded");
         main.state(player).sidebars.put(source,priority,System.nanoTime()+ticks(ttlTicks),new Sidebar(title,texts,values));
     }
-    public static void remove(Player player,String source){Main main=service();State state=main.players.get(player);if(state!=null){state.layout.unpin(source);state.sidebars.remove(source);}}
-    public static void removeSource(String source){Main main=service();for(State state:main.players.values()){state.layout.unpin(source);state.sidebars.remove(source);}}
+    public static void remove(Player player,String source){if(!ready())return;Main main=service();State state=main.players.get(player);if(state!=null){state.layout.unpin(source);state.sidebars.remove(source);}}
+    public static void removeSource(String source){if(!ready())return;Main main=service();for(State state:main.players.values()){state.layout.unpin(source);state.sidebars.remove(source);}}
     /** The core only knows seven colors and numbers white wrong for the client, so the packet is made here. */
     private static void sendColor(Player player,DummyBossBar bar,BarColor color){
         var packet=new cn.nukkit.network.protocol.BossEventPacket();
@@ -425,6 +437,13 @@ public final class Main extends PluginBase implements Listener {
         if(state!=null)state.layout.clearMessages();
     }
     /** The commands only use the methods above, so that what an admin can do is what a plugin can do. */
+    private void reloadSettings(){
+        reloadConfig();
+        messages.language(getConfig().getString("language","zh-TW"));
+        loadSettings();
+        getServer().getScheduler().cancelTask(this);
+        startTasks();
+    }
     private List<Player> targets(CommandSender sender,String name){
         if("*".equals(name))return new ArrayList<>(players.keySet());
         Player player=getServer().getPlayer(name);
@@ -469,6 +488,11 @@ public final class Main extends PluginBase implements Listener {
                 sender.sendMessage(messages.text("msg.display.cleared",cleared));
             }
             case "help"->sender.sendMessage(String.join("\n",messages.lines("help.display")));
+            case "reload"->{reloadSettings();sender.sendMessage(messages.text("msg.display.reloaded"));}
+            case ""->{
+                if(sender instanceof Player self)menu.open(self);
+                else sender.sendMessage(messages.text("msg.display.status",players.size())+"\n"+messages.text("cmd.display.usage"));
+            }
             default->sender.sendMessage(messages.text("msg.display.status",players.size())+"\n"+messages.text("cmd.display.usage"));
         }
         return true;
