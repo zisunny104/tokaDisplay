@@ -160,6 +160,17 @@ public final class Main extends PluginBase implements Listener {
      * for someone offline the fallback colour is used.
      */
     public static String nameTag(UUID id,String name,Player online){return service().composeNameTag(id,name,online);}
+    /**
+     * The light that says whether a player is here or away, such as a green or red mark. Whether the player is away is not decided
+     * here: tokaAnchor knows, and without it the player counts as here.
+     */
+    public static String light(Player player){return service().composeLight(player);}
+    private String composeLight(Player player){
+        boolean away=false;
+        var anchor=getServer().getPluginManager().getPlugin("tokaAnchor");
+        if(anchor!=null&&anchor.isEnabled())try{away=Boolean.TRUE.equals(anchor.getClass().getMethod("isAfk",UUID.class).invoke(null,player.getUniqueId()));}catch(ReflectiveOperationException|LinkageError unavailable){away=false;}
+        return away?getConfig().getString("light.away","§c⧯§r"):getConfig().getString("light.here","§a⧯§r");
+    }
     private String composeNameTag(UUID id,String name,Player online){
         return nameTag.compose(key->{
             if(key.equals("name"))return name;

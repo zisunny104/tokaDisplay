@@ -77,6 +77,11 @@ messages:
 
 # 玩家名稱標籤（聊天、加入離開訊息使用）。${name} 是玩家名稱，${mode} 是遊戲模式顏色，
 # 其他 ${id} 是其他插件登錄的片段（例如 title、affiliation、prefix）；沒有插件提供就是空白。
+# 玩家在線時的燈（在不在由 tokaAnchor 判斷，沒有它就一律當作在）。
+light:
+  here: "§a⧯§r"
+  away: "§c⧯§r"
+
 nametag:
   format: "${prefix}§r${affiliation}§r${mode}[${title}${mode}${name}${mode}]"
   mode-colors:
