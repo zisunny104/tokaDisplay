@@ -9,7 +9,7 @@ max-sources: 32
 # 公告（MOTD 與廣播）資料的儲存方式：sqlite、json 或 yaml，由共用的 tokaStorage 提供。
 storage:
   backend: sqlite
-# 公告發布開關。若 zero 舊 MOTD／廣播仍運行，會暫停發布避免重複。
+# 公告發布開關。若舊的 MOTD／廣播仍運行，會暫停發布避免重複。
 announcements:
   enabled: true
   # MOTD 輪播的間隔（秒）。
