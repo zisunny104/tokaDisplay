@@ -197,11 +197,16 @@ public final class Main extends PluginBase implements Listener {
             }
         });
     }
+    /** The new-style name of an item (minecraft:prismarine_bricks), or an empty string when the game has none for it */
+    private static String identifier(cn.nukkit.item.Item item){
+        try{var entry=cn.nukkit.item.RuntimeItems.getMapping().toRuntime(item.getId(),item.getDamage());return entry==null||entry.getIdentifier()==null?"":entry.getIdentifier();}
+        catch(RuntimeException|LinkageError unknown){return "";}
+    }
     private void registerBuiltins(){
         String own=getName();
         registerSection(own,"position",p->messages.text("ui.sidebar.position",(int)p.getX(),(int)p.getY(),(int)p.getZ()));
         registerSection(own,"bearing",p->messages.text("ui.sidebar.bearing",messages.lines("ui.sidebar.directions").get((int)((((p.getYaw()%360)+360)%360+22.5)/45)%8)));
-        registerSection(own,"item",p->{var item=p.getInventory().getItemInHand();return messages.text("ui.sidebar.item",item.getId(),item.getDamage());});
+        registerSection(own,"item",p->{var item=p.getInventory().getItemInHand();return messages.text("ui.sidebar.item",item.getId(),item.getDamage(),identifier(item));});
         registerSection(own,"tps",p->{int tps=(int)getServer().getTicksPerSecond();return messages.text("ui.sidebar.tps",tps==20?"§a":"§e",tps);});
         registerSection(own,"ping",p->{int ping=p.getPing();return messages.text("ui.sidebar.ping",ping<=75?"§a":ping<=100?"§e":ping<150?"§c":"§7",ping);});
     }
@@ -213,7 +218,14 @@ public final class Main extends PluginBase implements Listener {
             try{
                 Sidebar next=null;
                 if(enabled){
-                    var result=SidebarCompose.compose(sidebarLayout,id->{Section section=sections.get(id);return section==null?null:section.line().apply(player);},15);
+                    var result=SidebarCompose.compose(sidebarLayout,id->{
+                        // "a+b+c" puts several sections on one line
+                        if(id.contains("+")){
+                            var parts=new ArrayList<String>();
+                            for(String one:id.split("[+]")){Section part=sections.get(one);String text=part==null?null:part.line().apply(player);if(text!=null&&!text.isBlank())parts.add(text);}
+                            return parts.isEmpty()?null:String.join(" ",parts);
+                        }
+                        Section section=sections.get(id);return section==null?null:section.line().apply(player);},15);
                     for(String id:result.failed())if(failedSections.add(id))getLogger().warning(messages.text("log.sectionFailed",id));
                     if(result.truncated()&&!warnedOverflow){warnedOverflow=true;getLogger().warning(messages.text("log.sidebarTooLong"));}
                     if(!result.lines().isEmpty())next=new Sidebar(sidebarTitle,result.lines(),result.scores());
