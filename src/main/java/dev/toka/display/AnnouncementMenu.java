@@ -40,9 +40,10 @@ final class AnnouncementMenu {
 
     void open(Player player) {
         int[] counts = service.counts();
-        var window = new FormWindowSimple(t("ui.menu.title"), t("ui.menu.body", number(counts[0]), number(counts[1])));
+        var window = new FormWindowSimple(t("ui.menu.title"), "");
         window.addButton(Ui.button(t("ui.menu.motd", number(counts[0])), ICON_MOTD));
         window.addButton(Ui.button(t("ui.menu.broadcast", number(counts[1])), ICON_BROADCAST));
+        window.addButton(Ui.button(t("ui.close"), null));
         ui.show(player, window, answer -> {
             int id = ((FormResponseSimple) answer).getClickedButtonId();
             if (id == 0) list(player, "motd", "", 0);

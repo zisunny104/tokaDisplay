@@ -68,6 +68,7 @@ msg:
 
 # ---- 側邊記分板內建區段與公告視窗（ui.*） ----
 ui:
+  close: "§c關閉"
   back: "返回"
   search: "搜尋"
   searchLabel: "關鍵字或編號"
@@ -82,15 +83,13 @@ ui:
     broadcast: "廣播"
   menu:
     title: "公告管理"
-    # ${0} = MOTD 數、${1} = 廣播數
-    body: "MOTD §a${0}§r 則，廣播 §a${1}§r 則"
     motd: "MOTD（${0}）"
     broadcast: "廣播（${0}）"
   list:
     # ${0} = 種類、${1} = 頁、${2} = 總頁數
     title: "${0} ${1}/${2}"
     # ${0} = 符合數、${1} = 總數
-    body: "共 §a${0}§r 則，點選項目來修改"
+    body: "共 §a${0}§r 則"
     # ${2} = 搜尋字
     bodyQuery: "符合 §a${0}§r／§a${1}§r 則，搜尋「${2}」"
   textLabel: "內容"
