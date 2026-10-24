@@ -197,9 +197,11 @@ public final class Main extends PluginBase implements Listener {
             }
         });
     }
-    /** The new-style name of an item (minecraft:prismarine_bricks), or an empty string when the game has none for it */
+    /** The new-style name of an item without the minecraft: in front (prismarine_bricks), or an empty string when the game has none for it */
     private static String identifier(cn.nukkit.item.Item item){
-        try{var entry=cn.nukkit.item.RuntimeItems.getMapping().toRuntime(item.getId(),item.getDamage());return entry==null||entry.getIdentifier()==null?"":entry.getIdentifier();}
+        try{var entry=cn.nukkit.item.RuntimeItems.getMapping().toRuntime(item.getId(),item.getDamage());if(entry==null||entry.getIdentifier()==null)return "";
+            // the namespace is the same for everything, so only the name after it is shown
+            String id=entry.getIdentifier();return id.startsWith("minecraft:")?id.substring("minecraft:".length()):id;}
         catch(RuntimeException|LinkageError unknown){return "";}
     }
     private void registerBuiltins(){
