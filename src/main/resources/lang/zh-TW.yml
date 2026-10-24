@@ -16,8 +16,10 @@ cmd:
     announce:
       usage: "§7/display motd|broadcast list|add <文字>|set <ID> <文字>|remove <ID>"
 
-# ---- /display help 的多行說明（help.*）：第一行是標題 ----
+# ---- /display help 的多行說明（help.*）：第一行會被分頁標題取代 ----
 help:
+  # ${0} = 頁、${1} = 總頁數
+  head: "§6=== §f§ltokaDisplay 說明§r §6第 §a${0}§6/§a${1}§6 頁，/display help <頁> ==="
   display:
     - "§6=== §f§ltokaDisplay 說明§r §6==="
     - "§e/display §7- §b管理員在遊戲內開公告視窗，後台顯示狀態與用法"
@@ -100,7 +102,7 @@ ui:
     title: "確認刪除"
     body: "要刪除 ${0} #${1} 嗎？"
     yes: "刪除"
-    no: "取消"
+    no: "§c取消"
   sidebar:
     # ${0} = X、${1} = Y、${2} = Z
     position: "§3[座標]${0}:${1}:${2}§r"

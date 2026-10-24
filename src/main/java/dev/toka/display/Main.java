@@ -73,7 +73,8 @@ public final class Main extends PluginBase implements Listener {
         saveDefaultConfig();
         messages=new Messages(getClass().getClassLoader(),getDataFolder().toPath(),getConfig().getString("language","zh-TW"),line->getLogger().warning(line));
         suggest("display",
-                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"help", "reload"})},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"help"}), CommandParameter.newType("頁", true, CommandParamType.INT)},
+                new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"reload"})},
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"list"})},
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"list"}), CommandParameter.newType("玩家", true, CommandParamType.TARGET)},
                 new CommandParameter[]{CommandParameter.newEnum("動作", new String[]{"unpin"}), CommandParameter.newType("玩家", CommandParamType.TARGET), CommandParameter.newType("訊息ID或編號", CommandParamType.STRING)},
@@ -451,6 +452,15 @@ public final class Main extends PluginBase implements Listener {
         if(state!=null)state.layout.clearMessages();
     }
     /** The commands only use the methods above, so that what an admin can do is what a plugin can do. */
+    /** Chat help in pages: the title line of the file is replaced by a header with the page numbers. */
+    private void helpPage(CommandSender sender,String requested){
+        var lines=messages.lines("help.display");var body=lines.subList(1,lines.size());
+        int pages=Math.max(1,(body.size()+5)/6),page=1;
+        try{page=Integer.parseInt(requested);}catch(NumberFormatException first){page=1;}
+        page=Math.max(1,Math.min(page,pages));
+        sender.sendMessage(messages.text("help.head",page,pages));
+        sender.sendMessage(String.join("\n",body.subList((page-1)*6,Math.min(body.size(),page*6))));
+    }
     private void reloadSettings(){
         reloadConfig();
         messages.language(getConfig().getString("language","zh-TW"));
@@ -501,7 +511,7 @@ public final class Main extends PluginBase implements Listener {
                 int cleared=0;for(Player player:targets(sender,args[1])){clearMessages(player);cleared++;}
                 sender.sendMessage(messages.text("msg.display.cleared",cleared));
             }
-            case "help"->sender.sendMessage(String.join("\n",messages.lines("help.display")));
+            case "help"->helpPage(sender,args.length>1?args[1]:"");
             case "reload"->{reloadSettings();sender.sendMessage(messages.text("msg.display.reloaded"));}
             case ""->{
                 if(sender instanceof Player self)menu.open(self);
