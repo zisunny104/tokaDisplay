@@ -189,12 +189,20 @@ public final class Main extends PluginBase implements Listener {
             }
         });
     }
-    /** The new-style name of an item without the minecraft: in front (prismarine_bricks), or an empty string when the game has none for it */
+    private static final java.util.Map<Integer,String> identifiers = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The new-style name of an item without the minecraft: in front (prismarine_bricks), or an empty string when the game has none for it.
+     * Empty hands are skipped, and each item kind is looked up once: the game logs a warning for every lookup it cannot answer, and this runs every second.
+     */
     private static String identifier(cn.nukkit.item.Item item){
-        try{var entry=cn.nukkit.item.RuntimeItems.getMapping().toRuntime(item.getId(),item.getDamage());if(entry==null||entry.getIdentifier()==null)return "";
-            // the namespace is the same for everything, so only the name after it is shown
-            String id=entry.getIdentifier();return id.startsWith("minecraft:")?id.substring("minecraft:".length()):id;}
-        catch(RuntimeException|LinkageError unknown){return "";}
+        if(item==null||item.getId()==0)return "";
+        return identifiers.computeIfAbsent(item.getId()<<16|(item.getDamage()&0xFFFF),key->{
+            try{var entry=cn.nukkit.item.RuntimeItems.getMapping().toRuntime(item.getId(),item.getDamage());if(entry==null||entry.getIdentifier()==null)return "";
+                // the namespace is the same for everything, so only the name after it is shown
+                String id=entry.getIdentifier();return id.startsWith("minecraft:")?id.substring("minecraft:".length()):id;}
+            catch(RuntimeException|LinkageError unknown){return "";}
+        });
     }
     private void registerBuiltins(){
         String own=getName();
