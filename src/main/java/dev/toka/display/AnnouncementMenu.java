@@ -1,6 +1,7 @@
 package dev.toka.display;
 
 import cn.nukkit.Player;
+import cn.nukkit.form.element.ElementHeader;
 import cn.nukkit.form.element.ElementInput;
 import cn.nukkit.form.element.ElementLabel;
 import cn.nukkit.form.element.ElementToggle;
@@ -91,16 +92,18 @@ final class AnnouncementMenu {
 
     private void search(Player player, String kind, String query) {
         var window = new FormWindowCustom(t("ui.search"));
+        window.addElement(new ElementHeader(t("ui.search")));
         window.addElement(new ElementInput(t("ui.searchLabel"), t("ui.searchHint"), query));
-        ui.show(player, window, answer -> list(player, kind, ((FormResponseCustom) answer).getInputResponse(0).trim(), 0));
+        ui.show(player, window, answer -> list(player, kind, ((FormResponseCustom) answer).getInputResponse(1).trim(), 0));
     }
 
     private void add(Player player, String kind) {
         var window = new FormWindowCustom(t("ui.add"));
+        window.addElement(new ElementHeader(t("ui.add")));
         window.addElement(new ElementLabel(t("ui.textHint")));
         window.addElement(new ElementInput(t("ui.textLabel"), "", ""));
         ui.show(player, window, answer -> {
-            String text = ((FormResponseCustom) answer).getInputResponse(1);
+            String text = ((FormResponseCustom) answer).getInputResponse(2);
             if (text == null || text.isBlank()) { player.sendMessage(t("err.emptyText")); list(player, kind, "", 0); return; }
             run(player, kind, "add", -1, text);
         });
@@ -111,13 +114,14 @@ final class AnnouncementMenu {
         for (var row : service.rows(kind)) if (row.getAsJsonObject().get("id").getAsInt() == id) current = row.getAsJsonObject().get("text").getAsString();
         if (current == null) { list(player, kind, "", 0); return; }
         var window = new FormWindowCustom(t("ui.edit.title", t("ui.kind." + kind), id));
+        window.addElement(new ElementHeader(t("ui.edit.title", t("ui.kind." + kind), id)));
         window.addElement(new ElementLabel(t("ui.textHint")));
         window.addElement(new ElementInput(t("ui.textLabel"), "", current.replace("\n", "\\n")));
         window.addElement(new ElementToggle(t("ui.edit.delete"), false));
         ui.show(player, window, answer -> {
             var response = (FormResponseCustom) answer;
-            if (response.getToggleResponse(2)) { confirmDelete(player, kind, id); return; }
-            String text = response.getInputResponse(1);
+            if (response.getToggleResponse(3)) { confirmDelete(player, kind, id); return; }
+            String text = response.getInputResponse(2);
             if (text == null || text.isBlank()) { player.sendMessage(t("err.emptyText")); list(player, kind, "", 0); return; }
             run(player, kind, "set", id, text);
         });
