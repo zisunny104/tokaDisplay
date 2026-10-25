@@ -33,26 +33,6 @@ public final class AnnouncementStore implements AutoCloseable {
         JsonArray list=current.getAsJsonArray(kind);
         return list.isEmpty()?null:list.get(Math.floorMod(index,list.size())).getAsJsonObject().get("text").getAsString();
     }
-    private static JsonObject content(JsonObject input){
-        validate(input);JsonObject out=new JsonObject();out.addProperty("schema",1);
-        for(String kind:List.of("motd","broadcast")){
-            TreeMap<Integer,JsonObject> rows=new TreeMap<>();
-            for(var value:input.getAsJsonArray(kind)){var row=value.getAsJsonObject();JsonObject clean=new JsonObject();clean.addProperty("id",row.get("id").getAsInt());clean.addProperty("text",row.get("text").getAsString());rows.put(clean.get("id").getAsInt(),clean);}
-            JsonArray list=new JsonArray();rows.values().forEach(list::add);out.add(kind,list);
-        }return out;
-    }
-    public String snapshotJson(){if(state!=null)return content(state).toString();return "{\"schema\":1,\"motd\":[],\"broadcast\":[]}";}
-    public boolean verify(String json){return JsonParser.parseString(snapshotJson()).equals(content(JsonParser.parseString(json).getAsJsonObject()));}
-    /** General snapshot initialization: accept an empty destination or identical current content only. */
-    public synchronized void replaceIfEmptyOrEqual(String json)throws IOException{
-        JsonObject incoming=content(JsonParser.parseString(json).getAsJsonObject());
-        if(state!=null&&(!state.getAsJsonArray("motd").isEmpty()||!state.getAsJsonArray("broadcast").isEmpty())){
-            if(!content(state).equals(incoming))throw new IllegalStateException("Destination differs; refusing overwrite");return;
-        }
-        JsonObject next=incoming.deepCopy();
-        for(String kind:List.of("motd","broadcast")){long id=state!=null&&state.has(kind+"NextId")?state.get(kind+"NextId").getAsLong():0;for(var row:incoming.getAsJsonArray(kind))id=Math.max(id,(long)row.getAsJsonObject().get("id").getAsInt()+1);next.addProperty(kind+"NextId",id);}
-        save(next);
-    }
     private void save(JsonObject next)throws IOException{validate(next);store.save("announcements",next);JsonObject actual=store.load("announcements").orElseThrow(()->new IOException("Missing announcement readback"));if(!actual.equals(next))throw new IOException("Announcement readback mismatch");state=next;}
     public synchronized int change(String kind,String action,int id,String text)throws IOException{
         kind(kind);JsonObject next;

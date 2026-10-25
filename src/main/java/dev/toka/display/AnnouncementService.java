@@ -34,15 +34,6 @@ public final class AnnouncementService implements AutoCloseable {
     com.google.gson.JsonArray rows(String kind){return store.list(kind);}
     public String list(String kind){return store.list(kind).toString();}
     public int change(String kind,String action,int id,String text)throws Exception{return store.change(kind,action,id,text.replace("\\n","\n"));}
-    public void replace(String payload)throws Exception{store.replaceIfEmptyOrEqual(payload);}
-    public String snapshot(){return store.snapshotJson();}
-    public boolean verify(String payload){return store.verify(payload);}
-    public void setEnabled(boolean enabled){
-        boolean previous=plugin.getConfig().getBoolean("announcements.enabled",true);
-        plugin.getConfig().set("announcements.enabled",enabled);
-        try{plugin.saveConfig();}catch(RuntimeException error){plugin.getConfig().set("announcements.enabled",previous);throw error;}
-        if(!enabled&&changedMotd){plugin.getServer().getNetwork().setName(initialMotd);changedMotd=false;}
-    }
     private long interval(String kind,int fallback){return Math.max(1,Math.min(86400,plugin.getConfig().getInt("announcements."+kind+"-seconds",fallback)))*1_000_000_000L;}
     public void pulse(){
         if(!publishing())return;
