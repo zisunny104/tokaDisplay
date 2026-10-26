@@ -77,7 +77,7 @@ ui:
   prev: "上一頁"
   next: "下一頁"
   # ${0} = 編號、${1} = 內容摘要
-  entry: "§a#${0} §r${1}"
+  entry: "#${0} ${1}"
   kind:
     motd: "MOTD"
     broadcast: "廣播"
