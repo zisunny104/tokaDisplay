@@ -221,10 +221,22 @@ public class LayoutTest {
         String message = "§b" + "歡迎加入我們的討論區".repeat(7) + "§r";
         layout.flash(message, null, 0, 0);
         String text = layout.frame(1).text();
-        // the line for the bar was 76 spaces wide and the text 412 bytes, now the line holds one space
+        // the message is the widest line, so the empty line for the bar holds one space
         assertTrue(text, withinTheLimits(text));
         assertTrue(text, text.endsWith(message));
         assertTrue(text, text.contains("\n \n"));
+    }
+
+    @Test
+    public void theDiscordAnnouncementThatBrokeTheClientIsShortNow() {
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 400, BarColor.WHITE, 0, "§8- §r", "", true, 1, 0));
+        layout.base(" §5[線上]1  §9①⑧:③①§r  §a⧯§r§b[管]§r§2[凜喵]§r§b[廢（；´д｀）ゞ§6-§bzisunny104§b]§r \n" + " ".repeat(60) + "\n", null, 100 * S, 0);
+        layout.flash("§a[廣播]§b 歡迎加入我們的 Discord！遊戲輸入 §6/discord link§b 取得代碼，再到 Discord 輸入 §6/link code:代碼§b 就能綁定§r", null, 0, 0);
+        String text = layout.frame(1).text();
+        // it was 412 bytes, the empty line for the bar had about 100 spaces
+        assertTrue(text, text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length < 330);
+        assertTrue(text, text.contains("\n \n"));
+        assertFalse(text, text.endsWith("…"));
     }
 
     @Test

@@ -33,7 +33,11 @@ public final class AnnouncementService implements AutoCloseable {
     /** The saved entries for the window; each row has id and text. */
     com.google.gson.JsonArray rows(String kind){return store.list(kind);}
     public String list(String kind){return store.list(kind).toString();}
-    public int change(String kind,String action,int id,String text)throws Exception{return store.change(kind,action,id,text.replace("\\n","\n"));}
+    /** The most a broadcast may be in UTF-8 bytes: with the first line of the boss bar it has to stay under what the client takes. */
+    static final int MAX_BROADCAST_BYTES=200;
+    /** A broadcast is one line: the line breaks, typed as \n or in the old saved ones, become one space. */
+    static String oneLine(String text){return text.replace("\\n"," ").replaceAll("\\s*[\\r\\n]+\\s*"," ").strip();}
+    public int change(String kind,String action,int id,String text)throws Exception{return store.change(kind,action,id,kind.equals("broadcast")?oneLine(text):text.replace("\\n","\n"));}
     private long interval(String kind,int fallback){return Math.max(1,Math.min(86400,plugin.getConfig().getInt("announcements."+kind+"-seconds",fallback)))*1_000_000_000L;}
     public void pulse(){
         if(!publishing())return;
@@ -46,7 +50,8 @@ public final class AnnouncementService implements AutoCloseable {
         if(now>=nextBroadcast&&broadcasts>0&&!plugin.getServer().getOnlinePlayers().isEmpty()){
             String text=store.textAt("broadcast",broadcastIndex++);
             if(text!=null){
-                for(Player player:plugin.getServer().getOnlinePlayers().values())Main.flash(player,text,0,-1f,null);
+                String line=oneLine(text);
+                for(Player player:plugin.getServer().getOnlinePlayers().values())Main.flash(player,line,0,-1f,null);
                 nextBroadcast=now+interval("broadcast",25);
             }
         }
@@ -73,8 +78,12 @@ public final class AnnouncementService implements AutoCloseable {
     /** Saves one change on the storage thread and returns the line that tells what was done. */
     private String perform(String kind,String action,int id,String text)throws Exception{
         String before=textOf(kind,id);
+        if(kind.equals("broadcast")&&!action.equals("remove")){
+            int bytes=oneLine(text).getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+            if(bytes>MAX_BROADCAST_BYTES)return plugin.messages().text("err.broadcastTooLong",bytes,MAX_BROADCAST_BYTES);
+        }
         int saved=change(kind,action,id,text);
-        String shown=action.equals("remove")?before:text;
+        String shown=action.equals("remove")?before:kind.equals("broadcast")?oneLine(text):text;
         return plugin.messages().text(action.equals("add")?"msg.announce.added":action.equals("set")?"msg.announce.changed":"msg.announce.removed",kind,saved,shown.replace((char)10,(char)32));
     }
     /** For the window: the same change as the commands make; the answer comes back on the server thread, the line or the failure. */

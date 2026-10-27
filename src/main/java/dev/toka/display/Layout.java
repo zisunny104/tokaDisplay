@@ -322,23 +322,25 @@ public final class Layout {
         }
 
         List<String> lines = new ArrayList<>();
-        int gapLines = 0;
         if (!first.isEmpty()) {
             if (this.settings.trimBlank() && this.settings.barGapLines() > 0 && !after.isEmpty()) {
                 // The other lines stay on the left; the first line is moved to the middle of the text with spaces,
                 // and the empty line for the bar is as wide as the text, so that the text does not change its width
-                double widest = Math.max(this.settings.minWidth(), width(first));
+                double afterWidest = 0;
                 for (String line : after) {
                     for (String part : line.split("\n", -1)) {
-                        widest = Math.max(widest, width(part));
+                        afterWidest = Math.max(afterWidest, width(part));
                     }
                 }
+                double widest = Math.max(Math.max(this.settings.minWidth(), width(first)), afterWidest);
                 int total = (int) Math.ceil(widest);
                 int pad = (int) Math.round((total - width(first)) / 2.0);
                 lines.add(" ".repeat(Math.max(0, pad)) + first);
+                // A line below that is already as wide as the text sets its width, so one space is enough for the empty
+                // line; a long line of spaces is what made the text too long for the client
+                String gap = afterWidest >= total ? " " : " ".repeat(total);
                 for (int i = 0; i < this.settings.barGapLines(); i++) {
-                    lines.add(" ".repeat(total));
-                    gapLines++;
+                    lines.add(gap);
                 }
             } else {
                 lines.add(first);
@@ -366,15 +368,7 @@ public final class Layout {
                 until = Math.min(until, message.expiresAt());
             }
         }
-        String text = String.join("\n", lines);
-        if (tooLong(text) && gapLines > 0) {
-            // The empty lines for the bar only keep the text as wide as its widest line, a line of one space is enough
-            for (int i = 1; i <= gapLines; i++) {
-                lines.set(lines.size() - after.size() - i, " ");
-            }
-            text = String.join("\n", lines);
-        }
-        this.cached = new Frame(limit(text), bar);
+        this.cached = new Frame(limit(String.join("\n", lines)), bar);
         this.cachedUntil = until;
         return this.cached;
     }

@@ -134,6 +134,8 @@ err:
   # ${0} = 例外類別名稱，後面另外顯示 cmd.display.announce.usage
   announceFailed: "§c操作未完成（${0}）："
   emptyText: "§c內容不能留空"
+  # ${0} = 廣播的位元組數，${1} = 上限
+  broadcastTooLong: "§c廣播太長（${0} 位元組，上限 ${1}），請縮短"
 
 # ---- 後台文字（log.*）：不加方括號標籤 ----
 log:
