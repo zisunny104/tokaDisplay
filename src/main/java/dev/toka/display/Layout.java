@@ -23,11 +23,18 @@ public final class Layout {
      * @param trimBlank    true to drop the lines that have nothing to read and the spaces at the end of a line
      * @param barGapLines  lines kept empty under the first line for the bar, only when something follows
      * @param minWidth     the least width of the text in the width of a space, the first line is centered in it
+     * @param wrapWidth    the width after which a longer line of a message goes on in the next line, 0 for no wrapping
      */
     public record Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor,
-                           long maxPinnedLifetime, String flashPrefix, String pinnedPrefix, boolean trimBlank, int barGapLines, int minWidth) {
+                           long maxPinnedLifetime, String flashPrefix, String pinnedPrefix, boolean trimBlank, int barGapLines, int minWidth,
+                           int wrapWidth) {
         public Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor, long maxPinnedLifetime) {
-            this(flashSeconds, maxFlash, maxPinned, maxText, defaultColor, maxPinnedLifetime, "", "", false, 0, 0);
+            this(flashSeconds, maxFlash, maxPinned, maxText, defaultColor, maxPinnedLifetime, "", "", false, 0, 0, 0);
+        }
+
+        public Settings(int flashSeconds, int maxFlash, int maxPinned, int maxText, BarColor defaultColor, long maxPinnedLifetime,
+                        String flashPrefix, String pinnedPrefix, boolean trimBlank, int barGapLines, int minWidth) {
+            this(flashSeconds, maxFlash, maxPinned, maxText, defaultColor, maxPinnedLifetime, flashPrefix, pinnedPrefix, trimBlank, barGapLines, minWidth, 0);
         }
     }
 
@@ -200,8 +207,74 @@ public final class Layout {
     private void addLines(List<String> lines, String text, String prefix) {
         String clean = this.settings.trimBlank() ? trimBlank(text) : text;
         if (!clean.isEmpty()) {
-            lines.add(prefix + clean);
+            String line = prefix + clean;
+            lines.add(this.settings.wrapWidth() > 0 ? wrap(line, this.settings.wrapWidth(), (int) Math.ceil(width(prefix))) : line);
         }
+    }
+
+    /** Characters that do not start a line: the closing marks and the ones that end a sentence. */
+    private static final String NOT_AT_START = "，。、；：！？）」』》〉,.;:!?)]}";
+
+    /**
+     * Breaks each line that is wider than the given width: after a space or after any wide character, never in front
+     * of a mark that ends a sentence and never inside a color code. The next line starts with the color that was
+     * active and is moved by as many spaces as the prefix is wide.
+     */
+    static String wrap(String text, int maxWidth, int indent) {
+        List<String> out = new ArrayList<>();
+        for (String line : text.split("\n", -1)) {
+            wrapLine(line, maxWidth, indent, out);
+        }
+        return String.join("\n", out);
+    }
+
+    private static void wrapLine(String line, int maxWidth, int indent, List<String> out) {
+        StringBuilder current = new StringBuilder();
+        double width = 0;
+        int breakAt = -1;
+        String active = "";
+        // the colors that were active at the start of the current line and at the possible break
+        String activeAtBreak = "";
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '§' && i + 1 < line.length()) {
+                char code = Character.toLowerCase(line.charAt(i + 1));
+                current.append(c).append(line.charAt(i + 1));
+                if (code == 'r') {
+                    active = "";
+                } else if ("klmno".indexOf(code) >= 0) {
+                    active += "§" + code;
+                } else {
+                    active = "§" + code;
+                }
+                i++;
+                continue;
+            }
+            double w = c < 128 ? (".,:;'|!iIl`".indexOf(c) >= 0 ? 0.5 : 1) : 2;
+            if (width + w > maxWidth && breakAt > 0) {
+                String head = current.substring(0, breakAt).stripTrailing();
+                String rest = current.substring(breakAt);
+                out.add(head);
+                current = new StringBuilder(" ".repeat(indent) + activeAtBreak + rest.stripLeading());
+                width = indent + width(rest.stripLeading());
+                breakAt = -1;
+            } else if (width + w > maxWidth && breakAt < 0 && current.length() > 0) {
+                // nothing to break at in this line: break in front of the character
+                out.add(current.toString());
+                current = new StringBuilder(" ".repeat(indent) + active);
+                width = indent;
+            }
+            current.append(c);
+            width += w;
+            if (c == ' ') {
+                breakAt = current.length();
+                activeAtBreak = active;
+            } else if (c >= 128 && (i + 1 >= line.length() || NOT_AT_START.indexOf(line.charAt(i + 1)) < 0)) {
+                breakAt = current.length();
+                activeAtBreak = active;
+            }
+        }
+        out.add(current.toString());
     }
 
     /**

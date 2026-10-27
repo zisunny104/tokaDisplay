@@ -106,7 +106,8 @@ public final class Main extends PluginBase implements Listener {
                 getConfig().getString("messages.flash-prefix","§8- §r"),getConfig().getString("messages.pinned-prefix","§8= §r"),
                 getConfig().getBoolean("messages.trim-blank-lines",true),
                 Math.max(0,Math.min(3,getConfig().getInt("messages.bar-gap-lines",1))),
-                Math.max(0,Math.min(200,getConfig().getInt("messages.status-min-width",60))));
+                Math.max(0,Math.min(200,getConfig().getInt("messages.status-min-width",60))),
+                Math.max(0,Math.min(200,getConfig().getInt("messages.wrap-width",60))));
         sidebarTitle=getConfig().getString("sidebar.title","§e                              §r");
         sidebarLayout=getConfig().exists("sidebar.layout")?getConfig().getStringList("sidebar.layout"):DEFAULT_LAYOUT;
         nameTag=new NameTag(getConfig().getString("nametag.format","${prefix}§r${affiliation}§r${mode}[${title}${mode}${name}${mode}]"));

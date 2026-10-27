@@ -240,6 +240,37 @@ public class LayoutTest {
     }
 
     @Test
+    public void aLongLineGoesOnInTheNextLine() {
+        // 10 wide characters are 20 wide, the width is 20, so a line holds 10 of them
+        assertEquals("一二三四五六七八九十\n十一十二十三", Layout.wrap("一二三四五六七八九十十一十二十三", 20, 0));
+        assertEquals("short", Layout.wrap("short", 20, 0));
+    }
+
+    @Test
+    public void aLineBreaksAtASpaceInEnglishAndNeverInFrontOfAMark() {
+        assertEquals("hello world\nthis is long", Layout.wrap("hello world this is long", 12, 0));
+        // the comma may not start a line, so the character before it goes along
+        assertEquals("一二三四\n五，六", Layout.wrap("一二三四五，六", 10, 0));
+    }
+
+    @Test
+    public void theNextLineKeepsTheColorAndIsMovedByTheWidthOfThePrefix() {
+        assertEquals("§a一二三四\n  §a五六", Layout.wrap("§a一二三四五六", 8, 2));
+        // a color that was reset is not taken to the next line
+        assertEquals("§a一二§r三四\n  五六", Layout.wrap("§a一二§r三四五六", 8, 2));
+    }
+
+    @Test
+    public void messagesAreWrappedAtTheWrapWidthOfTheSettings() {
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 400, BarColor.WHITE, 0, "- ", "", true, 1, 0, 20));
+        layout.base("first", null, 100 * S, 0);
+        layout.flash("一二三四五六七八九十十一十二十三", null, 0, 0);
+        String text = layout.frame(1).text();
+        // the prefix is 2 wide, so the first line holds 9 characters, the next line is moved by 2 spaces
+        assertTrue(text, text.endsWith("- 一二三四五六七八九\n  十十一十二十三"));
+    }
+
+    @Test
     public void aMessageThatIsTooLongIsCutAtTheEndNotInsideAColorCode() {
         Layout layout = new Layout(new Layout.Settings(15, 3, 2, 600, BarColor.WHITE, 0, "", "", true, 1, 0));
         layout.base("info", null, 100 * S, 0);
