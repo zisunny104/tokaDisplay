@@ -15,11 +15,20 @@ public final class SidebarCompose {
      */
     public static Result compose(List<String> layout,Function<String,String> lookup,int max){
         List<String> items=new ArrayList<>(),failed=new ArrayList<>();
-        for(String id:layout){
+        for(int i=0;i<layout.size();i++){
+            String id=layout.get(i);
             if(SEPARATOR.equals(id)){if(!items.isEmpty()&&items.get(items.size()-1)!=null)items.add(null);continue;}
             String text=null;
             try{text=lookup.apply(id);}catch(RuntimeException|LinkageError error){if(!failed.contains(id))failed.add(id);}
-            if(text!=null&&!text.isEmpty())items.add(text);
+            if(text==null||text.isEmpty())continue;
+            int newline=text.indexOf('\n');
+            if(newline<0){items.add(text);continue;}
+            // A section that is too wide for its line gives the rest after a line break: the rest takes the place of the empty
+            // line that follows it, so the sidebar has no line more; without such a line the two parts stay in one line
+            String head=text.substring(0,newline),rest=text.substring(newline+1);
+            if(rest.isEmpty())items.add(head);
+            else if(i+1<layout.size()&&SEPARATOR.equals(layout.get(i+1))){items.add(head);items.add(rest);i++;}
+            else items.add(head+" "+rest);
         }
         boolean truncated=items.size()>max;
         if(truncated)items=new ArrayList<>(items.subList(0,max));

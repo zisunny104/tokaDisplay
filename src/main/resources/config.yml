@@ -26,6 +26,8 @@ sidebar:
   title: "§e                              §r"
   # 組合並更新側欄的間隔（tick）。
   refresh-ticks: 20
+  # 手上物品那一行的最大寬度（中文約算 2、英文約算 1）。物品名稱太長、超過時，名稱會改放在下一行（接在物品那行後面的空白行位置），不會多出一行；名稱還是太長就以 … 省略。
+  item-max-width: 24
   # 側欄由上而下的內容：項目是區段 id，或 - 代表一行空白。內建區段：position、bearing、item、tps、ping；
   # region、money、coin、area 由其他插件註冊。沒有註冊或這一輪沒內容的區段會略過，多餘的空白行自動收斂，最多 15 行。
   layout:

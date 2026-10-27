@@ -48,6 +48,7 @@ public final class Main extends PluginBase implements Listener {
     private String fallbackModeColor="§7";
     private boolean warnedOverflow;
     private List<String> sidebarLayout=List.of();
+    private int itemMaxWidth=24;
     private String sidebarTitle="";
     private AnnouncementService announcements;
     private AnnouncementMenu menu;
@@ -110,6 +111,7 @@ public final class Main extends PluginBase implements Listener {
                 Math.max(0,Math.min(200,getConfig().getInt("messages.wrap-width",60))));
         sidebarTitle=getConfig().getString("sidebar.title","§e                              §r");
         sidebarLayout=getConfig().exists("sidebar.layout")?getConfig().getStringList("sidebar.layout"):DEFAULT_LAYOUT;
+        itemMaxWidth=Math.max(8,Math.min(60,getConfig().getInt("sidebar.item-max-width",24)));
         nameTag=new NameTag(getConfig().getString("nametag.format","${prefix}§r${affiliation}§r${mode}[${title}${mode}${name}${mode}]"));
         fallbackModeColor=getConfig().getString("nametag.fallback-mode-color","§7");
         modeColors.put(0,getConfig().getString("nametag.mode-colors.survival","§a"));
@@ -205,11 +207,21 @@ public final class Main extends PluginBase implements Listener {
             catch(RuntimeException|LinkageError unknown){return "";}
         });
     }
+    /**
+     * The line of the item in hand. When the name of the item makes it wider than sidebar.item-max-width, the name comes in a second
+     * part after a line break, which the sidebar puts in the empty line that follows, so it takes no line more.
+     */
+    private String itemLine(cn.nukkit.item.Item item){
+        String name=identifier(item);
+        String whole=messages.text("ui.sidebar.item",item.getId(),item.getDamage(),name);
+        if(name.isEmpty()||Layout.width(whole)<=itemMaxWidth)return whole;
+        return messages.text("ui.sidebar.itemHead",item.getId(),item.getDamage())+"\n"+messages.text("ui.sidebar.itemName",Layout.fit(name,itemMaxWidth));
+    }
     private void registerBuiltins(){
         String own=getName();
         registerSection(own,"position",p->messages.text("ui.sidebar.position",(int)p.getX(),(int)p.getY(),(int)p.getZ()));
         registerSection(own,"bearing",p->messages.text("ui.sidebar.bearing",messages.lines("ui.sidebar.directions").get((int)((((p.getYaw()%360)+360)%360+22.5)/45)%8)));
-        registerSection(own,"item",p->{var item=p.getInventory().getItemInHand();return messages.text("ui.sidebar.item",item.getId(),item.getDamage(),identifier(item));});
+        registerSection(own,"item",p->itemLine(p.getInventory().getItemInHand()));
         registerSection(own,"tps",p->{int tps=(int)getServer().getTicksPerSecond();return messages.text("ui.sidebar.tps",tps==20?"§a":"§e",tps);});
         registerSection(own,"ping",p->{int ping=p.getPing();return messages.text("ui.sidebar.ping",ping<=75?"§a":ping<=100?"§e":ping<150?"§c":"§7",ping);});
     }

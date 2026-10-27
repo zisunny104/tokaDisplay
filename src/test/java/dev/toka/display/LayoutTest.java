@@ -282,6 +282,13 @@ public class LayoutTest {
     }
 
     @Test
+    public void aNameIsCutToTheWidthWithAnEllipsis() {
+        assertEquals("road", Layout.fit("road", 10));
+        // 10 wide: 8 letters and the ellipsis, which is 2 wide
+        assertEquals("prismari…", Layout.fit("prismarine_bricks", 10));
+    }
+
+    @Test
     public void aShortTextIsNotChanged() {
         assertEquals("short", Layout.limit("short"));
         assertFalse(Layout.tooLong("§a" + "字".repeat(100)));

@@ -314,14 +314,33 @@ public final class Layout {
     }
 
     /**
-     * The longest text the client accepts in a boss bar. The client leaves the game with a bad packet error from 412
-     * bytes (258 characters) on and takes 411 bytes (246 characters), so both stay a little under that.
+     * The longest text the client accepts in a boss bar: from 412 bytes or 258 characters on it leaves the game with a bad packet
+     * error, and 411 bytes of 246 characters were still taken, so these are the biggest numbers that are known to work.
      */
-    static final int MAX_BYTES = 380;
-    static final int MAX_CHARS = 240;
+    static final int MAX_BYTES = 411;
+    static final int MAX_CHARS = 246;
 
     static boolean tooLong(String text) {
         return text.length() > MAX_CHARS || text.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES;
+    }
+
+    /** A name cut to the given width, with an ellipsis at the end when something was cut. */
+    static String fit(String text, int maxWidth) {
+        if (width(text) <= maxWidth) {
+            return text;
+        }
+        StringBuilder kept = new StringBuilder();
+        double used = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            double w = c == '§' ? 0 : (c < 128 ? (".,:;'|!iIl`".indexOf(c) >= 0 ? 0.5 : 1) : 2);
+            if (used + w > maxWidth - 2) {
+                break;
+            }
+            kept.append(c);
+            used += w;
+        }
+        return kept.append('…').toString();
     }
 
     /**

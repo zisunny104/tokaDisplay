@@ -37,4 +37,16 @@ public class SidebarComposeTest {
         assertTrue(run(List.of(),Map.of(),15).lines().isEmpty());
         assertTrue(run(List.of("-","-"),Map.of(),15).lines().isEmpty());
     }
+    @Test public void aSectionThatBreaksItsLineUsesTheEmptyLineThatFollows(){
+        // the item is wide: its second part takes the place of the empty line, so the count of the lines stays
+        var r=run(List.of("a","item","-","b"),Map.of("a","A","item","HEAD\nname","b","B"),15);
+        assertEquals(List.of("A","HEAD","name","B"),r.lines());
+        assertEquals(List.of(1,2,3,4),r.scores());
+        // without the break the same layout has the same count: the item, an empty line
+        assertEquals(4,run(List.of("a","item","-","b"),Map.of("a","A","item","HEAD","b","B"),15).lines().size());
+    }
+    @Test public void aBrokenLineWithoutAnEmptyLineAfterItStaysInOneLine(){
+        var r=run(List.of("a","item","b"),Map.of("a","A","item","HEAD\nname","b","B"),15);
+        assertEquals(List.of("A","HEAD name","B"),r.lines());
+    }
 }
