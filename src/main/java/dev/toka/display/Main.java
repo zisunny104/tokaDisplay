@@ -488,6 +488,8 @@ public final class Main extends PluginBase implements Listener {
     }
     public boolean onCommand(CommandSender sender,Command command,String label,String[] args){
         if(args.length>0&&announcements.command(sender,args))return true;
+        // Whoever may manage the announcements can open their window, also from the city pass, without the admin permission
+        if(args.length==0&&sender instanceof Player self&&(self.hasPermission("tokaDisplay.motd.manage")||self.hasPermission("tokaDisplay.broadcast.manage"))){menu.open(self);return true;}
         if(!sender.hasPermission("tokaDisplay.admin"))return false;
         String sub=args.length==0?"":args[0].toLowerCase(Locale.ROOT);
         switch(sub){
