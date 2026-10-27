@@ -284,8 +284,8 @@ public class LayoutTest {
     @Test
     public void aNameIsCutToTheWidthWithAnEllipsis() {
         assertEquals("road", Layout.fit("road", 10));
-        // 10 wide: 8 letters and the ellipsis, which is 2 wide
-        assertEquals("prismari…", Layout.fit("prismarine_bricks", 10));
+        // 10 wide: 8 wide of letters (the i is half) and the ellipsis, which is 2 wide
+        assertEquals("prismarin…", Layout.fit("prismarine_bricks", 10));
     }
 
     @Test
