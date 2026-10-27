@@ -210,6 +210,40 @@ public class LayoutTest {
         assertEquals("  first\n" + " ".repeat(8) + "\nland line", layout.frame(1).text());
     }
 
+    private static boolean withinTheLimits(String text) {
+        return text.length() <= Layout.MAX_CHARS && text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= Layout.MAX_BYTES;
+    }
+
+    @Test
+    public void aLongMessageKeepsTheTextUnderWhatTheClientTakes() {
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 400, BarColor.WHITE, 0, "§8- §r", "", true, 1, 0));
+        layout.base(" §5[線上]1  §9①⑧:③①§r  §a⧯§r§b[管]§r§2[凜喵]§r§b[廢]§r \n" + " ".repeat(60) + "\n", null, 100 * S, 0);
+        String message = "§b" + "歡迎加入我們的討論區".repeat(7) + "§r";
+        layout.flash(message, null, 0, 0);
+        String text = layout.frame(1).text();
+        // the line for the bar was 76 spaces wide and the text 412 bytes, now the line holds one space
+        assertTrue(text, withinTheLimits(text));
+        assertTrue(text, text.endsWith(message));
+        assertTrue(text, text.contains("\n \n"));
+    }
+
+    @Test
+    public void aMessageThatIsTooLongIsCutAtTheEndNotInsideAColorCode() {
+        Layout layout = new Layout(new Layout.Settings(15, 3, 2, 600, BarColor.WHITE, 0, "", "", true, 1, 0));
+        layout.base("info", null, 100 * S, 0);
+        layout.flash("§a" + "字§b".repeat(150), null, 0, 0);
+        String text = layout.frame(1).text();
+        assertTrue(text, withinTheLimits(text));
+        assertTrue(text, text.endsWith("…"));
+        assertFalse(text, text.substring(0, text.length() - 1).endsWith("§"));
+    }
+
+    @Test
+    public void aShortTextIsNotChanged() {
+        assertEquals("short", Layout.limit("short"));
+        assertFalse(Layout.tooLong("§a" + "字".repeat(100)));
+    }
+
     @Test
     public void theGameNumbersOfTheColorsAreTheOnesOfTheClient() {
         assertEquals(0, BarColor.PINK.clientIndex());

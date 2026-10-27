@@ -1,5 +1,6 @@
 package dev.toka.display;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -239,6 +240,44 @@ public final class Layout {
         return width;
     }
 
+    /**
+     * The longest text the client accepts in a boss bar. The client leaves the game with a bad packet error from 412
+     * bytes (258 characters) on and takes 411 bytes (246 characters), so both stay a little under that.
+     */
+    static final int MAX_BYTES = 380;
+    static final int MAX_CHARS = 240;
+
+    static boolean tooLong(String text) {
+        return text.length() > MAX_CHARS || text.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES;
+    }
+
+    /**
+     * Cuts a text that is too long, never inside a color code, and marks the cut with an ellipsis.
+     */
+    static String limit(String text) {
+        if (!tooLong(text)) {
+            return text;
+        }
+        StringBuilder kept = new StringBuilder();
+        int bytes = 0;
+        int i = 0;
+        while (i < text.length()) {
+            int codePoint = text.codePointAt(i);
+            int size = new String(Character.toChars(codePoint)).getBytes(StandardCharsets.UTF_8).length;
+            // room is kept for the ellipsis, three bytes and one character
+            if (bytes + size > MAX_BYTES - 3 || kept.length() + Character.charCount(codePoint) > MAX_CHARS - 1) {
+                break;
+            }
+            kept.appendCodePoint(codePoint);
+            bytes += size;
+            i += Character.charCount(codePoint);
+        }
+        if (kept.length() > 0 && kept.charAt(kept.length() - 1) == '§') {
+            kept.setLength(kept.length() - 1);
+        }
+        return kept.append('…').toString();
+    }
+
     private void prune(long now) {
         this.pinned.values().removeIf(message -> message.expired(now));
         this.flashes.removeIf(message -> message.expired(now));
@@ -283,6 +322,7 @@ public final class Layout {
         }
 
         List<String> lines = new ArrayList<>();
+        int gapLines = 0;
         if (!first.isEmpty()) {
             if (this.settings.trimBlank() && this.settings.barGapLines() > 0 && !after.isEmpty()) {
                 // The other lines stay on the left; the first line is moved to the middle of the text with spaces,
@@ -298,6 +338,7 @@ public final class Layout {
                 lines.add(" ".repeat(Math.max(0, pad)) + first);
                 for (int i = 0; i < this.settings.barGapLines(); i++) {
                     lines.add(" ".repeat(total));
+                    gapLines++;
                 }
             } else {
                 lines.add(first);
@@ -325,7 +366,15 @@ public final class Layout {
                 until = Math.min(until, message.expiresAt());
             }
         }
-        this.cached = new Frame(String.join("\n", lines), bar);
+        String text = String.join("\n", lines);
+        if (tooLong(text) && gapLines > 0) {
+            // The empty lines for the bar only keep the text as wide as its widest line, a line of one space is enough
+            for (int i = 1; i <= gapLines; i++) {
+                lines.set(lines.size() - after.size() - i, " ");
+            }
+            text = String.join("\n", lines);
+        }
+        this.cached = new Frame(limit(text), bar);
         this.cachedUntil = until;
         return this.cached;
     }
