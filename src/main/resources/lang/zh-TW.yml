@@ -131,7 +131,7 @@ ui:
 # ---- 錯誤與拒絕（err.*） ----
 err:
   # ${0} = 玩家名稱（使用者輸入）
-  playerNotFound: "§c找不到玩家 ${0}（需完整名稱且在線）"
+  playerNotFound: "§c找不到玩家 ${0}（需完整名稱且在線上）"
   playerOnly: "§c只能在遊戲內使用"
   fillRange: "§c填充度要是 0 到 100 的數字"
   noManagePermission: "§c沒有此項管理權限"

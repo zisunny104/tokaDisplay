@@ -90,7 +90,7 @@ baseline:
   time-format: "HH:mm"
   format: " §5[線上]${online}  §9${time}§r  ${light}${nametag}§r \n                                                            \n"
 
-# 玩家在線時的燈（在不在由 tokaAnchor 判斷，沒有它就一律當作在）。
+# 玩家在線上時的燈（在不在由 tokaAnchor 判斷，沒有它就一律當作在）。
 light:
   here: "§a⧯§r"
   away: "§c⧯§r"
