@@ -87,6 +87,7 @@ public final class Main extends PluginBase implements Listener {
         getServer().getPluginManager().registerEvents(this,this);instance=this;
         loadSettings();
         registerBuiltins();
+        purgeLeftovers();
         startTasks();
     }
 
@@ -120,6 +121,23 @@ public final class Main extends PluginBase implements Listener {
         modeColors.put(3,getConfig().getString("nametag.mode-colors.spectator","§e"));
     }
 
+    /**
+     * After a reload the screens of players who stayed on still hold what the previous instance sent: its boss bars and sidebar
+     * (objective ids are numbered by the core, so the recent ones are removed). Everything is sent again by the next render.
+     */
+    private void purgeLeftovers(){
+        int count=-1;
+        try{var field=Scoreboard.class.getDeclaredField("SCOREBOARD_COUNT");field.setAccessible(true);count=((java.util.concurrent.atomic.AtomicInteger)field.get(null)).get();}
+        catch(ReflectiveOperationException|RuntimeException|LinkageError unknown){/* only the boss bars are cleared */}
+        for(Player player:getServer().getOnlinePlayers().values()){
+            if(!player.isOnline())continue;
+            try{for(Long id:new ArrayList<>(player.getDummyBossBars().keySet()))player.removeBossBar(id);}catch(RuntimeException|LinkageError ignored){}
+            for(int id=Math.max(0,count-64);id<count;id++){
+                var packet=new cn.nukkit.network.protocol.RemoveObjectivePacket();packet.objectiveId=String.valueOf(id);
+                try{player.dataPacket(packet);}catch(RuntimeException|LinkageError ignored){}
+            }
+        }
+    }
     private void startTasks(){
         getServer().getScheduler().scheduleRepeatingTask(this,this::render,Math.max(1,getConfig().getInt("update-ticks",5)));
         getServer().getScheduler().scheduleRepeatingTask(this,this::compose,Math.max(1,getConfig().getInt("sidebar.refresh-ticks",20)));
