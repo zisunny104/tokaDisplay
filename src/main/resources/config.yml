@@ -88,6 +88,8 @@ baseline:
   refresh-ticks: 20
   fill: 100
   time-format: "HH:mm"
+  # 頭頂的名牌是否和頂部一樣（燈加名稱組合，含掛機狀態）。
+  overhead: true
   format: " §5[線上]${online}  §9${time}§r  ${light}${nametag}§r \n                                                            \n"
 
 # 玩家在線上時的燈（在不在由 tokaAnchor 判斷，沒有它就一律當作在）。

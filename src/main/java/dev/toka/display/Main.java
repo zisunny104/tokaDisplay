@@ -297,6 +297,11 @@ public final class Main extends PluginBase implements Listener {
                 String text=format.replace("${online}",online).replace("${time}",time).replace("${light}",composeLight(player))
                     .replace("${nametag}",composeNameTag(player.getUniqueId(),player.getName(),player));
                 state(player).layout.base(text,new BarEffect(fill,modeColorOf(player)),life,System.nanoTime());
+                // the tag above the head is the same light and name as at the top; set only when it changed, because every set is sent to nearby players
+                if(getConfig().getBoolean("baseline.overhead",true)){
+                    String over=composeLight(player)+composeNameTag(player.getUniqueId(),player.getName(),player);
+                    if(!over.equals(player.getNameTag()))player.setNameTag(over);
+                }
             }catch(RuntimeException|LinkageError error){
                 if(failedTagParts.add("baseline"))getLogger().warning(messages.text("log.tagPartFailed","baseline"));
             }
@@ -450,7 +455,7 @@ public final class Main extends PluginBase implements Listener {
     @EventHandler public void initialized(PlayerLocallyInitializedEvent event){resyncLater(event.getPlayer());}
     @EventHandler public void respawn(PlayerRespawnEvent event){resyncLater(event.getPlayer());}
     @EventHandler public void quit(PlayerQuitEvent event){State state=players.remove(event.getPlayer());if(state!=null)clear(event.getPlayer(),state);}
-    public void onDisable(){if(announcements!=null)try{announcements.close();}catch(Exception error){getLogger().warning(messages.text("log.storageCloseFailed"));}if(instance==this)instance=null;for(var entry:players.entrySet())clear(entry.getKey(),entry.getValue());players.clear();}
+    public void onDisable(){if(announcements!=null)try{announcements.close();}catch(Exception error){getLogger().warning(messages.text("log.storageCloseFailed"));}if(instance==this)instance=null;for(var entry:players.entrySet()){clear(entry.getKey(),entry.getValue());entry.getKey().setNameTag(entry.getKey().getName());}players.clear();}
     /**
      * The pinned messages and the messages sent once of a player, in the order they are shown, as a JSON array of
      * {position, kind, id, priority, seconds, text}. The base information is not listed.
